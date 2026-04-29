@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Administración · NOVA ENERGIA</title>
+  <link rel="stylesheet" href="../assets/css/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    table { width:100%; border-collapse: collapse; margin-top:12px; font-size:13px;}
+    th, td { padding:10px 12px; text-align:left; border-bottom:1px solid var(--border);}
+    th { color: var(--text-muted); font-weight:600; text-transform:uppercase; font-size:11px; letter-spacing:1px;}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div id="sidebar-slot"></div>
+    <main class="main">
+      <header class="page-header">
+        <h1>Administración</h1>
+        <p class="subtitle">Gestión de usuarios del portal — solo administrador.</p>
+      </header>
+
+      <div id="not-allowed" class="hidden">
+        <div class="alert alert-error">No tienes permisos para acceder a esta sección.</div>
+      </div>
+
+      <div id="admin-panel" class="hidden">
+        <div class="panel">
+          <h3>Usuarios registrados</h3>
+          <table id="users-table">
+            <thead>
+              <tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Registro</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="panel mt-4">
+          <h3>Notas sobre el almacenamiento (Fase 1)</h3>
+          <p class="text-small text-muted">
+            Los usuarios se almacenan en <code>localStorage</code> del navegador donde se registraron. Esto significa que cada
+            equipo tiene su propia lista. Para una sincronización entre dispositivos hay que migrar a un backend
+            (recomendado: <strong>Firebase Authentication</strong> en plan gratuito o <strong>Supabase</strong>).
+            Esto se programará en la Fase 2.
+          </p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="../assets/js/auth.js"></script>
+  <script>
+    mountSidebar('admin');
+    if (!Auth.isMaster()) {
+      document.getElementById('not-allowed').classList.remove('hidden');
+    } else {
+      document.getElementById('admin-panel').classList.remove('hidden');
+      renderUsers();
+    }
+
+    function renderUsers() {
+      const users = Auth.listUsers();
+      const tbody = document.querySelector('#users-table tbody');
+      tbody.innerHTML = users.map(u => {
+        const fecha = new Date(u.createdAt).toLocaleDateString('es-EC');
+        const isMaster = u.role === 'master';
+        return `<tr>
+          <td>${u.name}</td>
+          <td>${u.email}</td>
+          <td><span class="status-pill ${isMaster ? 'status-ok' : ''}" style="${isMaster ? '' : 'background: var(--bg-secondary); color: var(--text-muted); border:1px solid var(--border);'}">${isMaster ? 'Master' : 'Usuario'}</span></td>
+          <td>${fecha}</td>
+          <td>${isMaster ? '' : `<button class="btn btn-danger" style="padding:6px 12px; font-size:12px;" onclick="eliminar('${u.email}')">Eliminar</button>`}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function eliminar(email) {
+      if (!confirm(`¿Eliminar al usuario ${email}?`)) return;
+      const r = Auth.deleteUser(email);
+      if (r.ok) renderUsers();
+      else alert(r.error);
+    }
+  </script>
+</body>
+</html>

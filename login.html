@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Acceso · NOVA ENERGIA</title>
+  <link rel="stylesheet" href="assets/css/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <img src="assets/img/logo.png" alt="NOVA ENERGIA" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+      <div style="display:none">
+        <div class="text-logo">NOVA</div>
+        <div class="text-logo-sub">ENERGIA</div>
+      </div>
+    </div>
+
+    <h2 id="form-title">Iniciar sesión</h2>
+    <p class="auth-sub">Portal interno de herramientas de ingeniería</p>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login">Iniciar sesión</button>
+      <button class="auth-tab" id="tab-register">Registrarse</button>
+    </div>
+
+    <div id="alert-slot"></div>
+
+    <!-- LOGIN FORM -->
+    <form id="form-login">
+      <div class="form-group">
+        <label for="login-email">Correo electrónico</label>
+        <input type="email" id="login-email" class="form-input" required autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label for="login-password">Contraseña</label>
+        <input type="password" id="login-password" class="form-input" required autocomplete="current-password" />
+      </div>
+      <button type="submit" class="btn btn-primary">Entrar</button>
+    </form>
+
+    <!-- REGISTER FORM -->
+    <form id="form-register" class="hidden">
+      <div class="form-group">
+        <label for="reg-name">Nombre completo</label>
+        <input type="text" id="reg-name" class="form-input" required />
+      </div>
+      <div class="form-group">
+        <label for="reg-email">Correo electrónico</label>
+        <input type="email" id="reg-email" class="form-input" required autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label for="reg-password">Contraseña (mínimo 6 caracteres)</label>
+        <input type="password" id="reg-password" class="form-input" required minlength="6" autocomplete="new-password" />
+      </div>
+      <button type="submit" class="btn btn-primary">Crear cuenta</button>
+    </form>
+
+    <p class="text-muted text-small mt-4" style="text-align:center;">
+      Acceso restringido al equipo de NOVA ENERGIA.
+    </p>
+  </div>
+
+  <script src="assets/js/auth.js"></script>
+  <script>
+    // Si ya hay sesión, ir al dashboard
+    if (Auth.current()) {
+      window.location.href = 'index.html';
+    }
+
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+    const formLogin = document.getElementById('form-login');
+    const formRegister = document.getElementById('form-register');
+    const formTitle = document.getElementById('form-title');
+    const alertSlot = document.getElementById('alert-slot');
+
+    function showAlert(type, msg) {
+      alertSlot.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+    }
+
+    tabLogin.addEventListener('click', () => {
+      tabLogin.classList.add('active');
+      tabRegister.classList.remove('active');
+      formLogin.classList.remove('hidden');
+      formRegister.classList.add('hidden');
+      formTitle.textContent = 'Iniciar sesión';
+      alertSlot.innerHTML = '';
+    });
+
+    tabRegister.addEventListener('click', () => {
+      tabRegister.classList.add('active');
+      tabLogin.classList.remove('active');
+      formRegister.classList.remove('hidden');
+      formLogin.classList.add('hidden');
+      formTitle.textContent = 'Crear cuenta';
+      alertSlot.innerHTML = '';
+    });
+
+    formLogin.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const result = Auth.login({
+        email: document.getElementById('login-email').value,
+        password: document.getElementById('login-password').value
+      });
+      if (result.ok) {
+        window.location.href = 'index.html';
+      } else {
+        showAlert('error', result.error);
+      }
+    });
+
+    formRegister.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const result = Auth.register({
+        name: document.getElementById('reg-name').value,
+        email: document.getElementById('reg-email').value,
+        password: document.getElementById('reg-password').value
+      });
+      if (result.ok) {
+        showAlert('success', '¡Cuenta creada! Redirigiendo…');
+        setTimeout(() => window.location.href = 'index.html', 800);
+      } else {
+        showAlert('error', result.error);
+      }
+    });
+  </script>
+</body>
+</html>

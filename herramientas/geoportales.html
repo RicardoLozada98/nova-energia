@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Geoportales · NOVA ENERGIA</title>
+  <link rel="stylesheet" href="../assets/css/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app">
+    <div id="sidebar-slot"></div>
+
+    <main class="main">
+      <header class="page-header">
+        <h1>Geoportales eléctricos</h1>
+        <p class="subtitle">Visores GIS de las distribuidoras eléctricas del Ecuador. Haz clic para abrir en nueva pestaña.</p>
+      </header>
+
+      <div class="alert alert-info mb-3">
+        <strong>Tip:</strong> verifica primero la zona donde está ubicado el cliente para usar el geoportal de la empresa distribuidora correspondiente.
+      </div>
+
+      <div class="geoportal-grid" id="geoportal-list"></div>
+
+      <div style="margin-top:32px;">
+        <h2 style="font-size:16px; color: var(--text-secondary); margin-bottom:12px;">Agregar más geoportales</h2>
+        <p class="text-muted text-small">
+          Para añadir nuevos enlaces, edita el array <code>GEOPORTALES</code> en este archivo
+          (<code>herramientas/geoportales.html</code>). En una próxima versión migraremos estos enlaces a un archivo de
+          configuración central para administrarlos desde la sección de Administración.
+        </p>
+      </div>
+    </main>
+  </div>
+
+  <script src="../assets/js/auth.js"></script>
+  <script>
+    mountSidebar('geoportales');
+
+    const GEOPORTALES = [
+      {
+        nombre: 'EEQ — Empresa Eléctrica Quito',
+        region: 'Quito y zona norte de Pichincha',
+        url: 'https://geoportal.eeq.com.ec/webgis/',
+        descripcion: 'Visor de redes de distribución de la EEQ.'
+      },
+      {
+        nombre: 'CNEL EP — Guayaquil',
+        region: 'Guayaquil y zona urbana',
+        url: 'https://geoportalgye.cnelep.gob.ec/cnel/',
+        descripcion: 'Geoportal específico de la unidad de negocio CNEL Guayaquil.'
+      },
+      {
+        nombre: 'CNEL EP — Nacional',
+        region: 'Resto del país (Costa, Oriente, Galápagos)',
+        url: 'https://geoportal.cnelep.gob.ec/cnel/',
+        descripcion: 'Geoportal corporativo de CNEL EP para todas las unidades de negocio.'
+      },
+      {
+        nombre: 'CENTROSUR',
+        region: 'Azuay, Cañar y Morona Santiago',
+        url: 'https://geoportal.centrosur.gob.ec/geoportal/home/',
+        descripcion: 'Visor GIS de la Empresa Eléctrica Regional Centrosur.'
+      }
+    ];
+
+    const list = document.getElementById('geoportal-list');
+    list.innerHTML = GEOPORTALES.map(g => `
+      <div class="geo-card">
+        <div class="geo-region">${g.region}</div>
+        <div class="geo-name">${g.nombre}</div>
+        <p class="text-small text-muted">${g.descripcion}</p>
+        <div class="geo-actions">
+          <a class="btn btn-primary" href="${g.url}" target="_blank" rel="noopener" style="flex:1;">Abrir geoportal ↗</a>
+          <button class="btn btn-secondary" onclick="navigator.clipboard.writeText('${g.url}'); this.textContent='✓ Copiado'; setTimeout(()=>this.textContent='Copiar URL', 1500);">Copiar URL</button>
+        </div>
+      </div>
+    `).join('');
+  </script>
+</body>
+</html>

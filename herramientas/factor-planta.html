@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Factor de Planta · NOVA ENERGIA</title>
+  <link rel="stylesheet" href="../assets/css/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+  <style>
+    .fp-area-tooltip {
+      background: rgba(20, 27, 23, 0.92) !important;
+      color: #a8e6a8 !important;
+      border: 1px solid #4d8a4d !important;
+      font-family: 'JetBrains Mono', monospace !important;
+      font-size: 12px !important;
+      padding: 6px 10px !important;
+      border-radius: 6px !important;
+    }
+    .fp-area-tooltip:before { display: none; }
+    .leaflet-draw-tooltip {
+      background: rgba(20, 27, 23, 0.92) !important;
+      color: #e8e8e8 !important;
+      border: 1px solid #4d8a4d !important;
+      font-family: 'Inter', sans-serif !important;
+    }
+    .pv-bar-chart { width: 100%; display: block; margin-top: 8px; }
+    .pv-bar-chart rect.bar { fill: #5fb55f; transition: fill 0.2s; }
+    .pv-bar-chart rect.bar:hover { fill: #a8e6a8; }
+    .pv-bar-chart text { fill: #b8c2bc; font-family: 'Inter', sans-serif; font-size: 9px; }
+    .pv-bar-chart text.value { fill: #e8e8e8; font-size: 8px; }
+    .pv-bar-chart line.axis { stroke: #2a3530; stroke-width: 1; }
+    .loading-spin {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid rgba(125, 201, 125, 0.2);
+      border-top-color: #7dc97d;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .compare-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+    .compare-table th, .compare-table td { padding: 8px 6px; text-align: right; border-bottom: 1px solid #2a3530; }
+    .compare-table th { color: #b8c2bc; font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; }
+    .compare-table td:first-child, .compare-table th:first-child { text-align: left; color: #b8c2bc; }
+    .compare-table tr.best td { background: rgba(125, 201, 125, 0.08); color: #a8e6a8; font-weight: 600; }
+    .compare-table .num { font-family: 'JetBrains Mono', monospace; }
+
+    .proj-bar {
+      display: flex; gap: 8px; align-items: center;
+      padding: 12px 16px; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-md); margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .proj-bar select, .proj-bar input { font-size: 13px; }
+    .proj-bar .btn { padding: 7px 14px; font-size: 12px; }
+    .proj-name { background: var(--bg-secondary); border: 1px solid var(--border); color: var(--text-primary);
+                 padding: 7px 10px; border-radius: var(--radius-sm); font-size: 13px; min-width: 200px; font-family: inherit; }
+
+    /* Estilos de impresión / PDF */
+    @media print {
+      @page { size: A4; margin: 18mm 14mm; }
+      body { background: white !important; color: black !important; }
+      .sidebar, .fp-search, .fp-map-toolbar, .proj-bar, .alert,
+      #pv-extra .panel:nth-child(2),
+      .btn, button, .leaflet-draw, .leaflet-control-zoom,
+      .no-print { display: none !important; }
+      .main { margin-left: 0 !important; padding: 0 !important; max-width: 100% !important; }
+      .panel { background: white !important; border: 1px solid #ccc !important; color: black !important;
+               page-break-inside: avoid; box-shadow: none !important; padding: 12px !important; margin-bottom: 10px !important; }
+      .panel h3 { color: #2d6b2d !important; border-bottom: 1px solid #999 !important; }
+      .fp-stat { background: #f7faf7 !important; color: black !important; border-left-color: #2d6b2d !important; }
+      .fp-stat .stat-label { color: #555 !important; }
+      .fp-stat .stat-value { color: black !important; }
+      .fp-stat .stat-sub { color: #666 !important; }
+      .fp-layout { grid-template-columns: 1fr !important; height: auto !important; display: block !important; }
+      .fp-map-wrap { height: 350px !important; page-break-after: avoid; margin-bottom: 12px !important; }
+      .fp-side { gap: 10px; }
+      .compare-table { color: black !important; }
+      .compare-table th, .compare-table td { color: black !important; border-color: #ccc !important; }
+      .compare-table tr.best td { background: #f0fbf0 !important; color: #1d4d1d !important; }
+      .pv-bar-chart text { fill: #444 !important; }
+      .pv-bar-chart rect.bar { fill: #4d8a4d !important; }
+      .page-header h1 { color: #1d4d1d !important; }
+      .page-header { border-bottom: 2px solid #4d8a4d !important; }
+      a { color: #4d8a4d !important; text-decoration: none !important; }
+      .text-muted, .text-small { color: #555 !important; }
+      .print-header { display: block !important; padding: 0 0 12px; border-bottom: 2px solid #4d8a4d; margin-bottom: 16px; }
+      .print-header .corp { font-size: 22px; font-weight: 700; color: #2d6b2d; letter-spacing: 3px; }
+      .print-header .sub { font-size: 11px; color: #666; letter-spacing: 2px; }
+      .print-header .meta { font-size: 10px; color: #888; margin-top: 6px; }
+    }
+    .print-header { display: none; }
+
+    .econ-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+      padding: 6px 0; border-bottom: 1px solid var(--border);
+      align-items: center; font-size: 13px;
+    }
+    .econ-row:last-child { border-bottom: none; }
+    .econ-row .lab { color: var(--text-secondary); }
+    .econ-row .val { font-family: var(--font-mono); color: var(--green-bright); font-weight: 600; text-align: right; }
+    .econ-row .val.neutral { color: var(--text-primary); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div id="sidebar-slot"></div>
+    <main class="main">
+      <!-- Cabecera para impresión -->
+      <div class="print-header">
+        <div class="corp">NOVA ENERGIA</div>
+        <div class="sub">REPORTE DE FACTOR DE PLANTA</div>
+        <div class="meta" id="print-meta"></div>
+      </div>
+
+      <header class="page-header">
+        <h1>Factor de Planta — Cálculo y reporte</h1>
+        <p class="subtitle">Paso 3 / 3 · Calcula el factor de planta vía PVGIS, guarda proyectos, genera análisis económico y exporta a PDF.</p>
+      </header>
+
+      <!-- Barra de proyectos -->
+      <div class="proj-bar no-print">
+        <strong style="font-size:13px;">Proyecto:</strong>
+        <input type="text" id="proj-name" class="proj-name" placeholder="Nombre del proyecto..." />
+        <button class="btn btn-primary" onclick="guardarProyecto()" style="width:auto;">Guardar</button>
+        <select id="proj-load" class="form-select" style="width:auto; min-width:200px;" onchange="cargarProyecto(this.value)">
+          <option value="">— Cargar proyecto guardado —</option>
+        </select>
+        <button class="btn btn-danger" onclick="eliminarProyecto()" style="padding:7px 14px; font-size:12px;">Eliminar</button>
+        <button class="btn btn-secondary" onclick="window.print()" style="margin-left:auto;">📄 Generar PDF</button>
+      </div>
+
+      <div class="alert alert-info mb-3 no-print">
+        <strong>Flujo:</strong> 1) Busca y dibuja el polígono. 2) Define parámetros del sistema. 3) Pulsa <strong>Calcular con PVGIS</strong>. 4) Llena los datos económicos. 5) Guarda y/o exporta a PDF.
+      </div>
+
+      <div class="fp-layout">
+        <div class="fp-map-wrap">
+          <div class="fp-search no-print">
+            <input type="text" id="searchInput" placeholder="Buscar lugar o lat,lon" />
+            <button onclick="buscarLugar()">Ir</button>
+          </div>
+          <div class="fp-map-toolbar no-print">
+            <button id="btn-draw" onclick="iniciarDibujo()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 19 8 19 16 12 22 5 16 5 8 12 2"/></svg>
+              Dibujar polígono
+            </button>
+            <button id="btn-clear" onclick="limpiarMapa()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 01-2 2H9a2 2 0 01-2-2L5 6"/></svg>
+              Limpiar
+            </button>
+            <button id="btn-toggle-layer" onclick="toggleEtiquetas()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              Etiquetas
+            </button>
+          </div>
+          <div id="map"></div>
+        </div>
+
+        <div class="fp-side">
+          <div class="panel">
+            <h3>1. Datos del polígono</h3>
+            <div id="poly-info">
+              <div class="fp-empty">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 19 8 19 16 12 22 5 16 5 8 12 2"/></svg>
+                <div>Aún no has dibujado un polígono.</div>
+                <div style="margin-top:8px; font-size:12px;">Pulsa <strong>Dibujar polígono</strong> y traza el terreno sobre el mapa.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h3>2. Parámetros del sistema</h3>
+            <div class="form-group">
+              <label>Potencia pico (kWp)</label>
+              <input type="number" id="pv-power" class="form-input" value="1000" min="0.1" step="10" />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Tipo de montaje</label>
+                <select id="pv-tracking" class="form-select">
+                  <option value="0" selected>Fijo (estructura)</option>
+                  <option value="3">1-eje horizontal N-S</option>
+                  <option value="4">1-eje horizontal E-O</option>
+                  <option value="2">2 ejes (azimut + elevación)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Optimizar ángulos</label>
+                <select id="pv-optimal" class="form-select">
+                  <option value="1" selected>Sí (PVGIS calcula)</option>
+                  <option value="0">No (manual)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Inclinación (°)</label>
+                <input type="number" id="pv-angle" class="form-input" value="10" min="0" max="90" step="1" />
+              </div>
+              <div class="form-group">
+                <label>Azimut (°) <span class="text-muted text-small">0=sur, 180=norte</span></label>
+                <input type="number" id="pv-aspect" class="form-input" value="0" min="-180" max="180" step="1" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Pérdidas del sistema (%)</label>
+                <input type="number" id="pv-loss" class="form-input" value="14" min="0" max="40" step="0.5" />
+              </div>
+              <div class="form-group">
+                <label>Tecnología</label>
+                <select id="pv-tech" class="form-select">
+                  <option value="crystSi" selected>Si cristalino</option>
+                  <option value="CIS">CIS</option>
+                  <option value="CdTe">CdTe</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-primary" id="btn-calc" onclick="calcularPVGIS()" disabled>
+              Dibuja un polígono primero
+            </button>
+            <p class="text-muted text-small mt-3">
+              En Ecuador la inclinación óptima es muy baja (5-12° hacia el norte). Si "Optimizar ángulos = Sí", PVGIS encuentra la combinación óptima automáticamente.
+            </p>
+          </div>
+
+          <div class="panel">
+            <h3>3. Resultados PVGIS</h3>
+            <div id="pv-results">
+              <p class="text-muted text-small">Aquí aparecerán el factor de planta, producción anual, PR e irradiación una vez consultes PVGIS.</p>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h3>4. Análisis económico</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label>CAPEX ($/Wp)</label>
+                <input type="number" id="ec-capex" class="form-input" value="0.95" min="0.1" step="0.05" oninput="actualizarEconomico()" />
+              </div>
+              <div class="form-group">
+                <label>Tarifa eléctrica ($/kWh)</label>
+                <input type="number" id="ec-tarifa" class="form-input" value="0.085" min="0.01" step="0.005" oninput="actualizarEconomico()" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>O&M anual (% del CAPEX)</label>
+                <input type="number" id="ec-om" class="form-input" value="1.5" min="0" step="0.1" oninput="actualizarEconomico()" />
+              </div>
+              <div class="form-group">
+                <label>Vida útil (años)</label>
+                <input type="number" id="ec-vida" class="form-input" value="25" min="1" max="40" step="1" oninput="actualizarEconomico()" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Degradación anual (%)</label>
+                <input type="number" id="ec-degr" class="form-input" value="0.55" min="0" max="2" step="0.05" oninput="actualizarEconomico()" />
+              </div>
+              <div class="form-group">
+                <label>Tasa descuento (%)</label>
+                <input type="number" id="ec-tasa" class="form-input" value="8" min="0" max="20" step="0.5" oninput="actualizarEconomico()" />
+              </div>
+            </div>
+            <div id="ec-results" style="margin-top:12px;">
+              <p class="text-muted text-small">Calcula primero el factor de planta para que aparezca el análisis financiero.</p>
+            </div>
+            <p class="text-muted text-small mt-3">
+              Valores referenciales en Ecuador 2026: CAPEX utility ~$0.85-1.10/Wp · Tarifa industrial ~$0.07-0.10/kWh · O&M ~1.5-2 % · Degradación Tier-1 ~0.5-0.7 %/año.
+            </p>
+          </div>
+
+          <div class="panel">
+            <h3>Estimación de potencia instalable</h3>
+            <div id="pot-info">
+              <p class="text-muted text-small">Cuando dibujes el polígono, aquí se estimará la potencia máxima instalable.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="pv-extra" style="margin-top:24px; display:none;">
+        <div class="panel">
+          <h3 style="border:none; padding:0; margin:0 0 12px;">Producción mensual estimada</h3>
+          <div id="pv-monthly"></div>
+        </div>
+        <div class="panel" style="margin-top:16px;">
+          <h3 style="border:none; padding:0; margin:0 0 12px;">Comparativa de montajes (mismo terreno y potencia)</h3>
+          <div id="pv-compare"></div>
+          <p class="text-muted text-small mt-3" id="pv-compare-note">
+            Cada cálculo consulta PVGIS individualmente.
+          </p>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:24px;">
+        <h3 style="border:none; padding:0; margin:0 0 8px;">Notas técnicas</h3>
+        <p class="text-small text-muted">
+          Base de datos: PVGIS-SARAH3 (satélite Meteosat, 2005-2023). Factor de planta = E_anual / (P × 8760 h). Análisis económico: payback simple, LCOE básico (sin financiamiento ni impuestos), VAN con tasa de descuento sobre flujos netos. Para licitaciones serias, validar con PVsyst (Meteonorm) y modelo financiero detallado (deuda, impuestos, depreciación).
+        </p>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+  <script src="https://unpkg.com/@turf/turf@7.1.0/turf.min.js"></script>
+  <script src="../assets/js/auth.js"></script>
+  <script>
+    mountSidebar('factor-planta');
+
+    // ============ ESTADO GLOBAL ============
+    let poligonoActual = null;
+    let resultadosPVGIS = null;
+    const PROJ_KEY = 'nova_fp_proyectos_v1';
+
+    // ============ MAPA ============
+    const map = L.map('map', { center: [-1.5, -78.5], zoom: 7, zoomControl: true });
+
+    L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      { attribution: 'Tiles &copy; Esri &mdash; Maxar, GeoEye, Earthstar Geographics, USDA, USGS, AeroGRID, IGN', maxZoom: 19 }
+    ).addTo(map);
+
+    const capaEtiquetas = L.tileLayer(
+      'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+      { attribution: '', maxZoom: 19, opacity: 0.9 }
+    );
+    let etiquetasVisibles = false;
+    function toggleEtiquetas() {
+      etiquetasVisibles = !etiquetasVisibles;
+      const btn = document.getElementById('btn-toggle-layer');
+      if (etiquetasVisibles) { capaEtiquetas.addTo(map); btn.classList.add('active'); }
+      else { map.removeLayer(capaEtiquetas); btn.classList.remove('active'); }
+    }
+
+    const drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
+    let drawHandler = null;
+
+    function iniciarDibujo() {
+      drawnItems.clearLayers();
+      poligonoActual = null;
+      resultadosPVGIS = null;
+      actualizarPanel(null);
+      limpiarResultadosPVGIS();
+      if (drawHandler) { drawHandler.disable(); drawHandler = null; }
+      drawHandler = new L.Draw.Polygon(map, {
+        shapeOptions: { color: '#7dc97d', weight: 3, opacity: 0.9, fillColor: '#7dc97d', fillOpacity: 0.18 },
+        showArea: false, allowIntersection: false, guidelineDistance: 10
+      });
+      drawHandler.enable();
+      document.getElementById('btn-draw').classList.add('active');
+    }
+
+    map.on(L.Draw.Event.CREATED, function (e) {
+      const layer = e.layer;
+      drawnItems.addLayer(layer);
+      document.getElementById('btn-draw').classList.remove('active');
+      drawHandler = null;
+      const gj = layer.toGeoJSON();
+      analizarPoligono(gj, layer);
+    });
+
+    function limpiarMapa() {
+      drawnItems.clearLayers();
+      poligonoActual = null;
+      resultadosPVGIS = null;
+      if (drawHandler) { drawHandler.disable(); drawHandler = null; }
+      document.getElementById('btn-draw').classList.remove('active');
+      actualizarPanel(null);
+      limpiarResultadosPVGIS();
+    }
+
+    function analizarPoligono(gj, layer) {
+      const areaM2 = turf.area(gj);
+      const areaHa = areaM2 / 10000;
+      const centroide = turf.centroid(gj);
+      const [lon, lat] = centroide.geometry.coordinates;
+      const bounds = layer.getBounds();
+      const ne = bounds.getNorthEast();
+      const sw = bounds.getSouthWest();
+
+      poligonoActual = { areaM2, areaHa, lat, lon, geojson: gj };
+
+      layer.bindTooltip(
+        '<strong>' + areaHa.toFixed(2) + ' ha</strong><br>' + formatNum(areaM2, 0) + ' m²',
+        { permanent: true, direction: 'center', className: 'fp-area-tooltip' }
+      ).openTooltip();
+
+      const centroideIcon = L.divIcon({
+        className: 'centroide-marker',
+        html: '<div style="width:10px;height:10px;border-radius:50%;background:#a8e6a8;border:2px solid #0d1410;box-shadow:0 0 0 2px #a8e6a8;"></div>',
+        iconSize: [10, 10], iconAnchor: [5, 5]
+      });
+      L.marker([lat, lon], { icon: centroideIcon })
+        .bindPopup('<strong>Centroide</strong><br>' + lat.toFixed(6) + '°, ' + lon.toFixed(6) + '°')
+        .addTo(drawnItems);
+
+      actualizarPanel({ areaM2, areaHa, lat, lon, ne: { lat: ne.lat, lon: ne.lng }, sw: { lat: sw.lat, lon: sw.lng } });
+
+      const btn = document.getElementById('btn-calc');
+      btn.disabled = false;
+      btn.textContent = 'Calcular con PVGIS';
+    }
+
+    function actualizarPanel(data) {
+      const polyInfo = document.getElementById('poly-info');
+      const potInfo = document.getElementById('pot-info');
+      if (!data) {
+        polyInfo.innerHTML = '<div class="fp-empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 19 8 19 16 12 22 5 16 5 8 12 2"/></svg><div>Aún no has dibujado un polígono.</div><div style="margin-top:8px; font-size:12px;">Pulsa <strong>Dibujar polígono</strong> y traza el terreno sobre el mapa.</div></div>';
+        potInfo.innerHTML = '<p class="text-muted text-small">Cuando dibujes el polígono, aquí se estimará la potencia máxima instalable.</p>';
+        const btn = document.getElementById('btn-calc');
+        btn.disabled = true;
+        btn.textContent = 'Dibuja un polígono primero';
+        return;
+      }
+
+      polyInfo.innerHTML =
+        '<div class="fp-stat"><span class="stat-label">Área del terreno</span>' +
+        '<span class="stat-value">' + data.areaHa.toFixed(3) + ' ha</span>' +
+        '<span class="stat-sub">' + formatNum(data.areaM2, 0) + ' m² · ' + (data.areaM2/1e6).toFixed(4) + ' km²</span></div>' +
+        '<div class="fp-stat"><span class="stat-label">Centroide (lat, lon)</span>' +
+        '<span class="stat-value">' + data.lat.toFixed(6) + ', ' + data.lon.toFixed(6) + '</span>' +
+        '<span class="stat-sub"><a href="https://www.google.com/maps/@' + data.lat + ',' + data.lon + ',18z" target="_blank" rel="noopener" style="font-size:11px;">Ver en Google Maps ↗</a></span></div>' +
+        '<div class="fp-stat"><span class="stat-label">Bounding box</span>' +
+        '<span class="stat-value" style="font-size:12px;">N ' + data.ne.lat.toFixed(5) + ' · E ' + data.ne.lon.toFixed(5) + '</span>' +
+        '<span class="stat-value" style="font-size:12px;">S ' + data.sw.lat.toFixed(5) + ' · O ' + data.sw.lon.toFixed(5) + '</span></div>';
+
+      const densidades = [
+        { tipo: 'Fijo (norte, 10°)',         densidad: 6.5, gcr: 0.45 },
+        { tipo: '1-eje horizontal N-S',      densidad: 4.5, gcr: 0.35 },
+        { tipo: '2-ejes (azimut+inclinac.)', densidad: 3.5, gcr: 0.27 }
+      ];
+      potInfo.innerHTML =
+        '<p class="text-muted text-small mb-3">Densidades típicas en Ecuador. Considera 30-40 % adicional del terreno para vías y servicios.</p>' +
+        densidades.map(function(d) {
+          var kWp = (data.areaM2 * d.densidad / 1000);
+          var MWp = kWp / 1000;
+          return '<div class="fp-stat"><span class="stat-label">' + d.tipo + '</span>' +
+                 '<span class="stat-value">' + formatNum(kWp, 0) + ' kWp <span style="font-size:12px; color: var(--text-muted);">(' + MWp.toFixed(3) + ' MWp)</span></span>' +
+                 '<span class="stat-sub">Densidad ' + d.densidad + ' Wp/m² · GCR ≈ ' + d.gcr + '</span></div>';
+        }).join('');
+    }
+
+    // ============ PVGIS API ============
+    const TRACKING_KEYS = { '0': 'fixed', '2': 'two_axis', '3': 'horizontal_axis', '4': 'horizontal_axis_e_w' };
+
+    function pvgisURL(params) {
+      const base = 'https://re.jrc.ec.europa.eu/api/v5_3/PVcalc';
+      const q = new URLSearchParams({
+        lat: params.lat.toFixed(6), lon: params.lon.toFixed(6),
+        peakpower: params.power, loss: params.loss,
+        pvtechchoice: params.tech, mountingplace: 'free',
+        trackingtype: params.tracking, outputformat: 'json',
+        browser: 0, raddatabase: 'PVGIS-SARAH3'
+      });
+      if (params.tracking === '0') {
+        if (params.optimal === '1') { q.append('optimalangles', 1); }
+        else { q.append('angle', params.angle); q.append('aspect', params.aspect); }
+      } else {
+        if (params.tracking === '3' || params.tracking === '4') q.append('angle', params.angle);
+      }
+      return base + '?' + q.toString();
+    }
+
+    function llamarPVGIS(params) {
+      return fetch(pvgisURL(params)).then(function(r){
+        if (!r.ok) return r.text().then(function(t){ throw new Error('HTTP ' + r.status + ': ' + t.substring(0, 200)); });
+        return r.json();
+      });
+    }
+
+    function limpiarResultadosPVGIS() {
+      document.getElementById('pv-results').innerHTML = '<p class="text-muted text-small">Aquí aparecerán el factor de planta, producción anual, PR e irradiación una vez consultes PVGIS.</p>';
+      document.getElementById('ec-results').innerHTML = '<p class="text-muted text-small">Calcula primero el factor de planta.</p>';
+      document.getElementById('pv-extra').style.display = 'none';
+    }
+
+    function calcularPVGIS() {
+      if (!poligonoActual) { alert('Dibuja primero un polígono.'); return; }
+      const params = {
+        lat: poligonoActual.lat, lon: poligonoActual.lon,
+        power: parseFloat(document.getElementById('pv-power').value),
+        tracking: document.getElementById('pv-tracking').value,
+        optimal: document.getElementById('pv-optimal').value,
+        angle: parseFloat(document.getElementById('pv-angle').value),
+        aspect: parseFloat(document.getElementById('pv-aspect').value),
+        loss: parseFloat(document.getElementById('pv-loss').value),
+        tech: document.getElementById('pv-tech').value
+      };
+
+      const btn = document.getElementById('btn-calc');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spin"></span> Consultando PVGIS...';
+      const resultsDiv = document.getElementById('pv-results');
+      resultsDiv.innerHTML = '<p class="text-muted text-small"><span class="loading-spin"></span> Llamando a PVGIS-SARAH3...</p>';
+
+      llamarPVGIS(params)
+        .then(function(data) { mostrarResultadosPVGIS(data, params); return calcularComparativa(params); })
+        .catch(function(err) {
+          let extra = '';
+          if (window.location.protocol === 'file:') {
+            extra = '<br><strong>Estás abriendo el portal con file://</strong> — esto causa errores CORS. Soluciones: (a) sirve la carpeta con <code>python -m http.server 8000</code> y abre <code>http://localhost:8000/login.html</code>, o (b) sube el portal a GitHub Pages.';
+          }
+          resultsDiv.innerHTML = '<div class="alert alert-error"><strong>Error PVGIS:</strong> ' + err.message + '<br><br>Posibles causas: sin internet, coordenadas fuera de cobertura, servidor saturado, o restricción CORS.' + extra + '</div>';
+        })
+        .finally(function(){
+          btn.disabled = false;
+          btn.textContent = 'Recalcular con PVGIS';
+        });
+    }
+
+    function mostrarResultadosPVGIS(data, params) {
+      const resultsDiv = document.getElementById('pv-results');
+      try {
+        const key = TRACKING_KEYS[params.tracking] || 'fixed';
+        const totals = data.outputs.totals[key] || data.outputs.totals.fixed;
+        const monthly = data.outputs.monthly[key] || data.outputs.monthly.fixed;
+        const inputs = data.inputs;
+
+        const E_y = totals.E_y;
+        const E_y_y = totals.E_y_y || (E_y / params.power);
+        const H_y = totals.H_y || totals['H(i)_y'] || 0;
+        const SD_y = totals.SD_y || 0;
+        const fp = E_y / (params.power * 8760);
+
+        const lAng = totals.l_aoi || 0;
+        const lSpec = totals.l_spec || 0;
+        const lTemp = totals.l_tg || 0;
+        const lTotal = totals.l_total || 0;
+
+        let usedAngle = params.angle, usedAspect = params.aspect;
+        if (inputs.mounting_system && inputs.mounting_system.fixed) {
+          if (inputs.mounting_system.fixed.slope) usedAngle = inputs.mounting_system.fixed.slope.value;
+          if (inputs.mounting_system.fixed.azimuth) usedAspect = inputs.mounting_system.fixed.azimuth.value;
+        }
+        const dbUsed = inputs.meteo_data ? inputs.meteo_data.radiation_db : 'PVGIS-SARAH3';
+        const yearRange = inputs.meteo_data ? (inputs.meteo_data.year_min + '–' + inputs.meteo_data.year_max) : '';
+
+        // Guardar en estado global
+        resultadosPVGIS = { fp, E_y, E_y_y, H_y, SD_y, lTotal, params, monthly: monthly.map(function(m){ return m.E_m; }), dbUsed, yearRange, usedAngle, usedAspect };
+
+        resultsDiv.innerHTML =
+          '<div class="fp-stat" style="border-left-color:#a8e6a8;">' +
+            '<span class="stat-label">FACTOR DE PLANTA</span>' +
+            '<span class="stat-value" style="font-size:22px;">' + (fp * 100).toFixed(2) + ' %</span>' +
+            '<span class="stat-sub">' + formatNum(E_y, 0) + ' kWh/año entre ' + formatNum(params.power * 8760, 0) + ' kWh teóricos</span>' +
+          '</div>' +
+          '<div class="fp-stat"><span class="stat-label">Producción anual</span>' +
+            '<span class="stat-value">' + formatNum(E_y, 0) + ' kWh/año</span>' +
+            '<span class="stat-sub">≈ ' + (E_y/1000).toFixed(1) + ' MWh/año · ' + (E_y/1e6).toFixed(3) + ' GWh/año</span></div>' +
+          '<div class="fp-stat"><span class="stat-label">Yield específico</span>' +
+            '<span class="stat-value">' + formatNum(E_y_y, 0) + ' kWh/kWp/año</span>' +
+            '<span class="stat-sub">Horas equivalentes a plena carga</span></div>' +
+          '<div class="fp-stat"><span class="stat-label">Irradiación en plano</span>' +
+            '<span class="stat-value">' + formatNum(H_y, 0) + ' kWh/m²/año</span>' +
+            '<span class="stat-sub">PR estimado: ' + (H_y > 0 ? ((E_y_y / H_y) * 100).toFixed(1) : '—') + ' % · Inclinación: ' + (typeof usedAngle === 'number' ? usedAngle.toFixed(1) : usedAngle) + '° · Azimut: ' + (typeof usedAspect === 'number' ? usedAspect.toFixed(0) : usedAspect) + '°</span></div>' +
+          '<div class="fp-stat"><span class="stat-label">Variabilidad inter-anual</span>' +
+            '<span class="stat-value">± ' + formatNum(SD_y, 0) + ' kWh/año</span>' +
+            '<span class="stat-sub">Base: ' + dbUsed + ' (' + yearRange + ')</span></div>' +
+          '<div class="fp-stat"><span class="stat-label">Pérdidas totales</span>' +
+            '<span class="stat-value">' + lTotal.toFixed(1) + ' %</span>' +
+            '<span class="stat-sub">Ángulo ' + lAng.toFixed(1) + ' % · Espectro ' + lSpec.toFixed(1) + ' % · Temperatura ' + lTemp.toFixed(1) + ' %</span></div>';
+
+        renderMonthlyChart(resultadosPVGIS.monthly);
+        actualizarEconomico();
+        document.getElementById('pv-extra').style.display = 'block';
+      } catch (e) {
+        resultsDiv.innerHTML = '<div class="alert alert-error">Respuesta PVGIS inesperada: ' + e.message + '<br><pre style="font-size:10px; max-height:120px; overflow:auto;">' + JSON.stringify(data).substring(0, 500) + '</pre></div>';
+      }
+    }
+
+    function renderMonthlyChart(valores) {
+      const div = document.getElementById('pv-monthly');
+      const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      const maxVal = Math.max.apply(null, valores);
+      const total = valores.reduce(function(a,b){ return a+b; }, 0);
+      const minMes = valores.indexOf(Math.min.apply(null, valores));
+      const maxMes = valores.indexOf(maxVal);
+      const W = 700, H = 220, padL = 50, padR = 20, padT = 30, padB = 50;
+      const innerW = W - padL - padR;
+      const innerH = H - padT - padB;
+      const barW = innerW / 12 * 0.7;
+      const gap = innerW / 12 * 0.3;
+      let bars = '';
+      for (let i = 0; i < 12; i++) {
+        const v = valores[i];
+        const h = (v / maxVal) * innerH;
+        const x = padL + i * (innerW / 12) + gap/2;
+        const y = padT + innerH - h;
+        bars += '<rect class="bar" x="' + x + '" y="' + y + '" width="' + barW + '" height="' + h + '"><title>' + meses[i] + ': ' + formatNum(v, 0) + ' kWh</title></rect>';
+        bars += '<text class="value" x="' + (x + barW/2) + '" y="' + (y - 4) + '" text-anchor="middle">' + formatNum(v, 0) + '</text>';
+        bars += '<text x="' + (x + barW/2) + '" y="' + (padT + innerH + 14) + '" text-anchor="middle">' + meses[i] + '</text>';
+      }
+      const yticks = [0, 0.25, 0.5, 0.75, 1].map(function(f){
+        const y = padT + innerH - f * innerH;
+        const label = formatNum(f * maxVal, 0);
+        return '<line class="axis" x1="' + padL + '" y1="' + y + '" x2="' + (W - padR) + '" y2="' + y + '" opacity="0.4"/>' +
+               '<text x="' + (padL - 6) + '" y="' + (y + 3) + '" text-anchor="end" style="font-size:9px;">' + label + '</text>';
+      }).join('');
+      div.innerHTML =
+        '<svg class="pv-bar-chart" viewBox="0 0 ' + W + ' ' + H + '">' +
+          yticks + bars +
+          '<text x="' + (padL) + '" y="' + (padT - 12) + '" style="font-size:11px; fill:#7a857f;">kWh por mes</text>' +
+          '<text x="' + (W - padR) + '" y="' + (padT - 12) + '" text-anchor="end" style="font-size:11px; fill:#a8e6a8;">Total: ' + formatNum(total, 0) + ' kWh/año</text>' +
+        '</svg>' +
+        '<p class="text-muted text-small mt-2">Mes pico: <strong style="color:#a8e6a8;">' + meses[maxMes] + '</strong> (' + formatNum(valores[maxMes], 0) + ' kWh) · Mes valle: <strong>' + meses[minMes] + '</strong> (' + formatNum(valores[minMes], 0) + ' kWh) · Variabilidad estacional: ' + ((1 - valores[minMes]/valores[maxMes]) * 100).toFixed(1) + ' %.</p>';
+    }
+
+    function calcularComparativa(baseParams) {
+      const compareDiv = document.getElementById('pv-compare');
+      compareDiv.innerHTML = '<p class="text-muted text-small"><span class="loading-spin"></span> Consultando los 3 montajes...</p>';
+      const escenarios = [
+        { tracking: '0', label: 'Fijo' },
+        { tracking: '3', label: '1-eje horizontal N-S' },
+        { tracking: '2', label: '2 ejes' }
+      ];
+      const promesas = escenarios.map(function(esc){
+        const p = Object.assign({}, baseParams, { tracking: esc.tracking, optimal: '1' });
+        return llamarPVGIS(p).then(function(data){
+          const key = TRACKING_KEYS[esc.tracking] || 'fixed';
+          const totals = data.outputs.totals[key];
+          if (!totals) throw new Error('PVGIS no devolvió ' + key);
+          const E_y = totals.E_y;
+          return {
+            label: esc.label, E_y: E_y,
+            E_y_y: totals.E_y_y || (E_y / baseParams.power),
+            fp: E_y / (baseParams.power * 8760),
+            l_total: totals.l_total || 0
+          };
+        }).catch(function(err){ return { label: esc.label, error: err.message }; });
+      });
+      return Promise.all(promesas).then(function(resultados){
+        const fpFijo = resultados[0].fp || 0;
+        let html = '<table class="compare-table"><thead><tr>' +
+          '<th>Tipo de montaje</th><th>Producción anual</th><th>Yield (kWh/kWp)</th><th>Factor de planta</th><th>Δ vs fijo</th>' +
+          '</tr></thead><tbody>';
+        const validRes = resultados.filter(function(r){return !r.error;});
+        const maxFp = validRes.length ? Math.max.apply(null, validRes.map(function(r){return r.fp;})) : 0;
+        resultados.forEach(function(r){
+          if (r.error) {
+            html += '<tr><td>' + r.label + '</td><td colspan="4" style="color:#e67373; font-size:11px;">Error: ' + r.error + '</td></tr>';
+          } else {
+            const delta = fpFijo > 0 ? ((r.fp / fpFijo - 1) * 100) : 0;
+            const isBest = Math.abs(r.fp - maxFp) < 1e-6;
+            html += '<tr' + (isBest ? ' class="best"' : '') + '>' +
+              '<td>' + r.label + (isBest ? ' ★' : '') + '</td>' +
+              '<td class="num">' + formatNum(r.E_y, 0) + ' kWh</td>' +
+              '<td class="num">' + formatNum(r.E_y_y, 0) + '</td>' +
+              '<td class="num">' + (r.fp * 100).toFixed(2) + ' %</td>' +
+              '<td class="num">' + (delta >= 0 ? '+' : '') + delta.toFixed(1) + ' %</td>' +
+            '</tr>';
+          }
+        });
+        html += '</tbody></table>';
+        compareDiv.innerHTML = html;
+        document.getElementById('pv-compare-note').textContent = 'Misma potencia (' + baseParams.power + ' kWp), misma ubicación, mismas pérdidas (' + baseParams.loss + '%). Ángulos optimizados por PVGIS. ★ = mejor opción técnica.';
+      });
+    }
+
+    // ============ ANÁLISIS ECONÓMICO ============
+    function actualizarEconomico() {
+      const div = document.getElementById('ec-results');
+      if (!resultadosPVGIS) {
+        div.innerHTML = '<p class="text-muted text-small">Calcula primero el factor de planta.</p>';
+        return;
+      }
+      const power_kWp = resultadosPVGIS.params.power;
+      const power_Wp = power_kWp * 1000;
+      const E_y0 = resultadosPVGIS.E_y;          // kWh/año en el año 1
+      const capex_per_Wp = parseFloat(document.getElementById('ec-capex').value);
+      const tarifa = parseFloat(document.getElementById('ec-tarifa').value);
+      const om_pct = parseFloat(document.getElementById('ec-om').value) / 100;
+      const vida = parseInt(document.getElementById('ec-vida').value, 10);
+      const degr = parseFloat(document.getElementById('ec-degr').value) / 100;
+      const tasa = parseFloat(document.getElementById('ec-tasa').value) / 100;
+
+      const capex_total = power_Wp * capex_per_Wp;
+      const om_anual = capex_total * om_pct;
+      const ingreso_anual_y1 = E_y0 * tarifa;
+      const flujo_neto_y1 = ingreso_anual_y1 - om_anual;
+
+      // Producción acumulada y flujos
+      let energia_total = 0;
+      let van = -capex_total;
+      let payback_simple = null;
+      let acumulado = 0;
+      let flujos = [];
+      for (let n = 1; n <= vida; n++) {
+        const E_n = E_y0 * Math.pow(1 - degr, n - 1);
+        const ingreso_n = E_n * tarifa;
+        const flujo_n = ingreso_n - om_anual;
+        energia_total += E_n;
+        flujos.push(flujo_n);
+        van += flujo_n / Math.pow(1 + tasa, n);
+        acumulado += flujo_n;
+        if (payback_simple === null && acumulado >= capex_total) {
+          // Payback con interpolación lineal dentro del año
+          const flujoAnt = acumulado - flujo_n;
+          payback_simple = (n - 1) + (capex_total - flujoAnt) / flujo_n;
+        }
+      }
+      const lcoe = capex_total / energia_total + om_pct * capex_total / (E_y0 * Math.min(vida, 25)); // aproximación simple
+      // LCOE más estándar: (CAPEX + OPEX descontado) / E descontado
+      let opex_disc = 0, e_disc = 0;
+      for (let n = 1; n <= vida; n++) {
+        const E_n = E_y0 * Math.pow(1 - degr, n - 1);
+        opex_disc += om_anual / Math.pow(1 + tasa, n);
+        e_disc += E_n / Math.pow(1 + tasa, n);
+      }
+      const lcoe_std = (capex_total + opex_disc) / e_disc;
+
+      div.innerHTML =
+        '<div class="econ-row"><span class="lab">CAPEX total</span><span class="val">$ ' + formatNum(capex_total, 0) + '</span></div>' +
+        '<div class="econ-row"><span class="lab">Ingresos año 1</span><span class="val">$ ' + formatNum(ingreso_anual_y1, 0) + '/año</span></div>' +
+        '<div class="econ-row"><span class="lab">O&M anual</span><span class="val neutral">$ ' + formatNum(om_anual, 0) + '/año</span></div>' +
+        '<div class="econ-row"><span class="lab">Flujo neto año 1</span><span class="val">$ ' + formatNum(flujo_neto_y1, 0) + '/año</span></div>' +
+        '<div class="econ-row"><span class="lab">Energía total ' + vida + ' años</span><span class="val neutral">' + formatNum(energia_total/1000, 0) + ' MWh</span></div>' +
+        '<div class="econ-row"><span class="lab">Payback simple</span><span class="val">' + (payback_simple ? payback_simple.toFixed(1) + ' años' : '> ' + vida + ' años') + '</span></div>' +
+        '<div class="econ-row"><span class="lab">VAN @' + (tasa*100).toFixed(1) + '%</span><span class="val">$ ' + formatNum(van, 0) + '</span></div>' +
+        '<div class="econ-row"><span class="lab">LCOE estimado</span><span class="val">' + lcoe_std.toFixed(4) + ' $/kWh</span></div>';
+    }
+
+    // ============ GUARDAR / CARGAR PROYECTOS ============
+    function getProyectos() {
+      const raw = localStorage.getItem(PROJ_KEY);
+      return raw ? JSON.parse(raw) : {};
+    }
+    function setProyectos(p) {
+      localStorage.setItem(PROJ_KEY, JSON.stringify(p));
+    }
+    function refrescarSelectorProyectos() {
+      const sel = document.getElementById('proj-load');
+      const proyectos = getProyectos();
+      const nombres = Object.keys(proyectos).sort();
+      sel.innerHTML = '<option value="">— Cargar proyecto guardado —</option>' +
+        nombres.map(function(n){ return '<option value="' + n.replace(/"/g, '&quot;') + '">' + n + '</option>'; }).join('');
+    }
+    function guardarProyecto() {
+      const nombre = document.getElementById('proj-name').value.trim();
+      if (!nombre) { alert('Escribe un nombre para el proyecto.'); return; }
+      if (!poligonoActual) { alert('Dibuja primero un polígono.'); return; }
+      const proyectos = getProyectos();
+      proyectos[nombre] = {
+        nombre: nombre,
+        fecha: new Date().toISOString(),
+        poligono: poligonoActual,
+        params: {
+          power: document.getElementById('pv-power').value,
+          tracking: document.getElementById('pv-tracking').value,
+          optimal: document.getElementById('pv-optimal').value,
+          angle: document.getElementById('pv-angle').value,
+          aspect: document.getElementById('pv-aspect').value,
+          loss: document.getElementById('pv-loss').value,
+          tech: document.getElementById('pv-tech').value
+        },
+        economico: {
+          capex: document.getElementById('ec-capex').value,
+          tarifa: document.getElementById('ec-tarifa').value,
+          om: document.getElementById('ec-om').value,
+          vida: document.getElementById('ec-vida').value,
+          degr: document.getElementById('ec-degr').value,
+          tasa: document.getElementById('ec-tasa').value
+        },
+        resultados: resultadosPVGIS
+      };
+      setProyectos(proyectos);
+      refrescarSelectorProyectos();
+      alert('Proyecto "' + nombre + '" guardado.');
+    }
+    function cargarProyecto(nombre) {
+      if (!nombre) return;
+      const proyectos = getProyectos();
+      const p = proyectos[nombre];
+      if (!p) return;
+      document.getElementById('proj-name').value = p.nombre;
+      // Restaurar parámetros
+      Object.keys(p.params).forEach(function(k){ const el = document.getElementById('pv-' + k); if (el) el.value = p.params[k]; });
+      Object.keys(p.economico).forEach(function(k){ const el = document.getElementById('ec-' + k); if (el) el.value = p.economico[k]; });
+      // Restaurar polígono en el mapa
+      drawnItems.clearLayers();
+      const layer = L.geoJSON(p.poligono.geojson, {
+        style: { color: '#7dc97d', weight: 3, opacity: 0.9, fillColor: '#7dc97d', fillOpacity: 0.18 }
+      });
+      const polyLayer = layer.getLayers()[0];
+      drawnItems.addLayer(polyLayer);
+      analizarPoligono(p.poligono.geojson, polyLayer);
+      map.fitBounds(polyLayer.getBounds(), { padding: [40, 40] });
+      // Restaurar resultados
+      if (p.resultados) {
+        resultadosPVGIS = p.resultados;
+        const fp = p.resultados.fp;
+        const params = p.resultados.params;
+        // Reconstruir HTML de resultados
+        document.getElementById('pv-results').innerHTML =
+          '<div class="fp-stat" style="border-left-color:#a8e6a8;"><span class="stat-label">FACTOR DE PLANTA (cargado)</span>' +
+          '<span class="stat-value" style="font-size:22px;">' + (fp * 100).toFixed(2) + ' %</span>' +
+          '<span class="stat-sub">' + formatNum(p.resultados.E_y, 0) + ' kWh/año</span></div>' +
+          '<div class="fp-stat"><span class="stat-label">Producción anual</span><span class="stat-value">' + formatNum(p.resultados.E_y, 0) + ' kWh/año</span></div>' +
+          '<div class="fp-stat"><span class="stat-label">Yield</span><span class="stat-value">' + formatNum(p.resultados.E_y_y, 0) + ' kWh/kWp</span></div>' +
+          '<div class="fp-stat"><span class="stat-label">Irradiación plano</span><span class="stat-value">' + formatNum(p.resultados.H_y, 0) + ' kWh/m²/año</span></div>' +
+          '<div class="alert alert-info" style="margin-top:8px; font-size:11px;">Resultados cargados del proyecto guardado el ' + new Date(p.fecha).toLocaleString('es-EC') + '. Pulsa <strong>Recalcular con PVGIS</strong> para refrescar.</div>';
+        renderMonthlyChart(p.resultados.monthly);
+        document.getElementById('pv-extra').style.display = 'block';
+        actualizarEconomico();
+      }
+    }
+    function eliminarProyecto() {
+      const sel = document.getElementById('proj-load');
+      const nombre = sel.value;
+      if (!nombre) { alert('Selecciona un proyecto del menú primero.'); return; }
+      if (!confirm('¿Eliminar el proyecto "' + nombre + '"? Esta acción no se puede deshacer.')) return;
+      const proyectos = getProyectos();
+      delete proyectos[nombre];
+      setProyectos(proyectos);
+      refrescarSelectorProyectos();
+      alert('Proyecto "' + nombre + '" eliminado.');
+    }
+
+    refrescarSelectorProyectos();
+
+    // ============ BUSCADOR ============
+    function buscarLugar() {
+      const q = document.getElementById('searchInput').value.trim();
+      if (!q) return;
+      const m = q.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
+      if (m) { map.setView([parseFloat(m[1]), parseFloat(m[2])], 17); return; }
+      const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ec&q=' + encodeURIComponent(q);
+      fetch(url, { headers: { 'Accept': 'application/json' } })
+        .then(function(r){ return r.json(); })
+        .then(function(results){
+          if (!results.length) {
+            return fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q)).then(function(r){ return r.json(); });
+          }
+          return results;
+        })
+        .then(function(results){
+          if (!results.length) { alert('No se encontró el lugar.'); return; }
+          map.setView([parseFloat(results[0].lat), parseFloat(results[0].lon)], 15);
+        })
+        .catch(function(err){ alert('Error: ' + err.message); });
+    }
+    document.getElementById('searchInput').addEventListener('keydown', function(e){ if (e.key === 'Enter') buscarLugar(); });
+
+    // ============ META PARA PDF ============
+    window.addEventListener('beforeprint', function(){
+      const sess = (typeof Auth !== 'undefined' && Auth.current()) ? Auth.current().name : 'Usuario';
+      const proyName = document.getElementById('proj-name').value || '(sin nombre)';
+      document.getElementById('print-meta').textContent =
+        'Proyecto: ' + proyName + ' · Generado por: ' + sess + ' · Fecha: ' + new Date().toLocaleString('es-EC');
+    });
+
+    function formatNum(n, decimals) {
+      if (decimals === undefined) decimals = 2;
+      if (typeof n !== 'number' || !isFinite(n)) return '—';
+      return n.toLocaleString('es-EC', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    }
+  </script>
+</body>
+</html>

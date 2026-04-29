@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Caída de voltaje · NOVA ENERGIA</title>
+  <link rel="stylesheet" href="../assets/css/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app">
+    <div id="sidebar-slot"></div>
+
+    <main class="main">
+      <header class="page-header">
+        <h1>Caída de voltaje y pérdidas</h1>
+        <p class="subtitle">DC → cable PV WIRE (UL 4703, AWG) · AC 3F → SUPERFLEX (AWG) o RV-K FOC (mm²) · Conductor de cobre, 90 °C</p>
+      </header>
+
+      <div class="calc-layout">
+
+        <!-- ============ ENTRADAS ============ -->
+        <div class="panel">
+          <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            Entradas del circuito
+          </h3>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Tipo de sistema</label>
+              <select id="tipoSistema" class="form-select">
+                <option value="DC">DC (fotovoltaico)</option>
+                <option value="AC 3F" selected>AC 3F (trifásico)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Sistema de calibres <span class="text-muted text-small">(solo AC)</span></label>
+              <select id="sistemaCalibres" class="form-select">
+                <option value="AWG" selected>AWG (SUPERFLEX)</option>
+                <option value="mm²">mm² (RV-K FOC)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Calibre del conductor</label>
+            <select id="calibre" class="form-select"></select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Voltaje nominal (V)</label>
+              <input type="number" id="voltaje" class="form-input" value="220" step="1" />
+            </div>
+            <div class="form-group">
+              <label>Corriente del circuito (A)</label>
+              <input type="number" id="corriente" class="form-input" value="20" step="0.1" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Distancia unidireccional (m)</label>
+              <input type="number" id="distancia" class="form-input" value="30" step="1" />
+            </div>
+            <div class="form-group">
+              <label>Conductores en paralelo (#)</label>
+              <input type="number" id="paralelos" class="form-input" value="1" min="1" step="1" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Temperatura del conductor (°C)</label>
+              <input type="number" id="temperatura" class="form-input" value="75" step="1" />
+            </div>
+            <div class="form-group">
+              <label>Método de instalación</label>
+              <select id="metodo" class="form-select">
+                <option>Ducto enterrado</option>
+                <option>Enterrado directo</option>
+                <option selected>Aire libre</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>% caída máx. — DC</label>
+              <input type="number" id="caidaMaxDC" class="form-input" value="2" step="0.1" />
+            </div>
+            <div class="form-group">
+              <label>% caída máx. — AC</label>
+              <input type="number" id="caidaMaxAC" class="form-input" value="3" step="0.1" />
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="ejecutar()" style="margin-top:8px;">Calcular</button>
+
+          <p class="text-muted text-small mt-3">
+            <strong>Sugerencia:</strong> DC string ≤ 2 % · DC main ≤ 1 % · AC inversor→tablero ≤ 1 % · AC tablero→empalme ≤ 0,5 % · total ≤ 3-5 %.
+          </p>
+        </div>
+
+        <!-- ============ RESULTADOS ============ -->
+        <div>
+          <div class="panel mb-3">
+            <h3>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              Resultados del cálculo
+            </h3>
+            <div id="resultados-cable" class="text-muted text-small">Ingresa los datos y pulsa <strong>Calcular</strong>.</div>
+          </div>
+
+          <div class="panel mb-3">
+            <h3>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+              Verificación
+            </h3>
+            <div id="resultados-verif" class="text-muted text-small">—</div>
+          </div>
+
+          <div class="panel">
+            <h3>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+              Calibre mínimo recomendado
+            </h3>
+            <div id="resultados-recom" class="text-muted text-small">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:24px;">
+        <h3 style="border:none; padding:0; margin:0 0 8px;">Notas técnicas</h3>
+        <p class="text-small text-muted">
+          ΔV(DC) = 2·I·L·R/N · ΔV(AC 3F) = √3·I·L·R/N · R<sub>T</sub> = R<sub>20</sub>·[1 + 0.00393·(T−20)] (cobre).
+          Ampacidades de PV WIRE basadas en NEC 310.16, conductor 90 °C, T<sub>amb</sub> 30 °C.
+          Valores de SUPERFLEX y RV-K FOC del catálogo General Cable.
+          Se asume FP = 1 y reactancia X despreciable (típico para enlaces inversor↔tablero solar).
+          Para conductores en exterior expuestos al sol se requiere derrateo adicional NEC 310.15(B)(3)(c).
+        </p>
+      </div>
+    </main>
+  </div>
+
+  <script src="../assets/js/auth.js"></script>
+  <script src="../assets/js/calculadora.js"></script>
+  <script>
+    mountSidebar('caida-voltaje');
+
+    const $ = id => document.getElementById(id);
+
+    function actualizarCalibres() {
+      const tipo = $('tipoSistema').value;
+      const sis = $('sistemaCalibres').value;
+      const lista = getCalibresDisponibles(tipo, sis);
+      const sel = $('calibre');
+      const valorPrevio = sel.value;
+      sel.innerHTML = lista.map(c => `<option value="${c}">${c}</option>`).join('');
+      // Conserva el valor si todavía existe
+      if (lista.includes(valorPrevio)) sel.value = valorPrevio;
+      else sel.value = lista[2] || lista[0];
+      // Bloquea/desbloquea el sistema de calibres
+      $('sistemaCalibres').disabled = (tipo === 'DC');
+    }
+
+    $('tipoSistema').addEventListener('change', () => { actualizarCalibres(); ejecutar(); });
+    $('sistemaCalibres').addEventListener('change', () => { actualizarCalibres(); ejecutar(); });
+    ['calibre','voltaje','corriente','distancia','paralelos','temperatura','metodo','caidaMaxDC','caidaMaxAC']
+      .forEach(id => $(id).addEventListener('change', ejecutar));
+
+    actualizarCalibres();
+
+    function fmt(num, decimals = 3) {
+      if (typeof num !== 'number' || !isFinite(num)) return '—';
+      return num.toLocaleString('es-EC', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    }
+    function pct(frac) { return (frac * 100).toFixed(2) + ' %'; }
+
+    function ejecutar() {
+      const input = {
+        tipoSistema: $('tipoSistema').value,
+        sistemaCalibres: $('sistemaCalibres').value,
+        calibre: $('calibre').value,
+        voltaje: parseFloat($('voltaje').value),
+        corriente: parseFloat($('corriente').value),
+        distancia: parseFloat($('distancia').value),
+        paralelos: parseInt($('paralelos').value, 10),
+        temperatura: parseFloat($('temperatura').value),
+        caidaMaxDC: parseFloat($('caidaMaxDC').value) / 100,
+        caidaMaxAC: parseFloat($('caidaMaxAC').value) / 100,
+        metodo: $('metodo').value
+      };
+
+      const r = calcular(input);
+      if (r.error) {
+        $('resultados-cable').innerHTML = `<div class="alert alert-error">${r.error}</div>`;
+        return;
+      }
+
+      $('resultados-cable').innerHTML = `
+        <div class="result-row"><span class="label">Tabla de cable consultada</span><span class="value">${r.nombreTabla}</span></div>
+        <div class="result-row"><span class="label">Sección nominal</span><span class="value">${fmt(r.seccion, 2)} mm²</span></div>
+        <div class="result-row"><span class="label">Diámetro exterior aprox.</span><span class="value">${fmt(r.diametro, 2)} mm</span></div>
+        <div class="result-row"><span class="label">Resistencia DC corregida @ T</span><span class="value">${fmt(r.rT, 4)} Ω/km</span></div>
+        <div class="result-row"><span class="label">Corriente por conductor</span><span class="value">${fmt(r.corrientePorConductor, 2)} A</span></div>
+        <div class="result-row"><span class="label">Resistencia total del circuito</span><span class="value">${fmt(r.resistenciaTotal, 5)} Ω</span></div>
+        <div class="result-row"><span class="label">Caída de tensión ΔV</span><span class="value highlight">${fmt(r.caidaV, 2)} V</span></div>
+        <div class="result-row"><span class="label">% caída de tensión</span><span class="value highlight">${pct(r.porcentajeCaida)}</span></div>
+        <div class="result-row"><span class="label">Tensión en el extremo</span><span class="value">${fmt(r.tensionExtremo, 2)} V</span></div>
+        <div class="result-row"><span class="label">Pérdida de potencia en el cable</span><span class="value">${fmt(r.perdidaW, 2)} W</span></div>
+        <div class="result-row"><span class="label">Potencia entregada al circuito</span><span class="value">${fmt(r.potenciaEntregada, 2)} W</span></div>
+        <div class="result-row"><span class="label">Pérdida (% sobre potencia entregada)</span><span class="value">${pct(r.perdidaPorcentaje)}</span></div>
+      `;
+
+      $('resultados-verif').innerHTML = `
+        <div class="result-row"><span class="label">% caída máxima aplicable</span><span class="value">${pct(r.caidaMaxAplicable)}</span></div>
+        <div class="result-row">
+          <span class="label">¿Cumple % caída de tensión?</span>
+          <span class="status-pill ${r.cumpleCaida ? 'status-ok' : 'status-fail'}">${r.cumpleCaida ? 'OK' : 'NO CUMPLE'}</span>
+        </div>
+        <div class="result-row">
+          <span class="label">¿Cumple capacidad de corriente?</span>
+          <span class="status-pill ${r.cumpleAmpacidad ? 'status-ok' : 'status-fail'}">${r.cumpleAmpacidad ? 'OK' : 'NO CUMPLE'}</span>
+        </div>
+        <div class="result-row"><span class="label">Ampacidad seleccionada por método</span><span class="value">${r.ampacidadMetodo} A</span></div>
+        <div class="result-row"><span class="label">Ampacidad total (× paralelos)</span><span class="value">${r.ampacidadTotal} A</span></div>
+        <div class="result-row"><span class="label">Margen de ampacidad</span><span class="value">${fmt(r.margenAmpacidad, 2)} A</span></div>
+        <div class="result-row"><span class="label">Margen de caída de tensión</span><span class="value">${fmt(r.margenCaida, 2)} V</span></div>
+        <div class="result-row"><span class="label">Tensión mínima recomendada en extremo</span><span class="value">${fmt(r.tensionMinimaRecomendada, 2)} V</span></div>
+      `;
+
+      const rec = calibreRecomendado(input);
+      if (!rec) {
+        $('resultados-recom').innerHTML = `<div class="alert alert-error">No hay calibre que cumpla simultáneamente ampacidad y % de caída con estos parámetros. Considera aumentar el voltaje, reducir la distancia o agregar conductores en paralelo.</div>`;
+      } else {
+        $('resultados-recom').innerHTML = `
+          <div class="result-row"><span class="label">Calibre mínimo recomendado</span><span class="value highlight">${rec.calibre}</span></div>
+          <div class="result-row"><span class="label">Sección recomendada</span><span class="value">${fmt(rec.resultado.seccion, 2)} mm²</span></div>
+          <div class="result-row"><span class="label">ΔV con calibre recomendado</span><span class="value">${fmt(rec.resultado.caidaV, 2)} V</span></div>
+          <div class="result-row"><span class="label">% ΔV con calibre recomendado</span><span class="value">${pct(rec.resultado.porcentajeCaida)}</span></div>
+          <div class="result-row"><span class="label">Pérdida con calibre recomendado</span><span class="value">${fmt(rec.resultado.perdidaW, 2)} W (${pct(rec.resultado.perdidaPorcentaje)})</span></div>
+        `;
+      }
+    }
+
+    // Cálculo inicial
+    ejecutar();
+  </script>
+</body>
+</html>
