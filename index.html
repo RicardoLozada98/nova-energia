@@ -2,107 +2,22 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Inicio · NOVA ENERGIA</title>
+  <meta http-equiv="refresh" content="0; url=herramientas/factor-planta.html" />
+  <title>NOVA ENERGIA</title>
   <link rel="stylesheet" href="assets/css/styles.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="assets/js/auth.js"></script>
+  <script>
+    // Redirección inmediata: si hay sesión va a factor-planta, sino a login
+    if (typeof Auth !== 'undefined' && Auth.current()) {
+      window.location.href = 'herramientas/factor-planta.html';
+    } else {
+      window.location.href = 'login.html';
+    }
+  </script>
 </head>
 <body>
-  <div class="app">
-    <div id="sidebar-slot"></div>
-
-    <main class="main">
-      <header class="page-header">
-        <h1>Portal de Herramientas</h1>
-        <p class="subtitle">Suite interna de ingeniería para sistemas solares · NOVA ENERGIA</p>
-      </header>
-
-      <section>
-        <h2 style="font-size:18px; margin-bottom:16px; color: var(--text-secondary);">Herramientas activas</h2>
-        <div class="tools-grid">
-
-          <a class="tool-card" href="herramientas/geoportales.html">
-            <span class="badge active">Disponible</span>
-            <div class="icon-wrap">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-              </svg>
-            </div>
-            <h3>Geoportales eléctricos</h3>
-            <p>Acceso directo a los visores GIS de las distribuidoras de Ecuador (EEQ, CNEL, Centrosur).</p>
-            <span class="footer-link">Abrir →</span>
-          </a>
-
-          <a class="tool-card" href="herramientas/caida-voltaje.html">
-            <span class="badge active">Disponible</span>
-            <div class="icon-wrap">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-              </svg>
-            </div>
-            <h3>Caída de voltaje y pérdidas</h3>
-            <p>Cálculo de ΔV, pérdidas y selección de calibre para circuitos DC (PV WIRE) y AC 3F (SUPERFLEX / RV-K).</p>
-            <span class="footer-link">Abrir calculadora →</span>
-          </a>
-
-          <a class="tool-card" href="herramientas/factor-planta.html">
-            <span class="badge active">Beta · Paso 1/3</span>
-            <div class="icon-wrap">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
-              </svg>
-            </div>
-            <h3>Factor de planta — Mapa</h3>
-            <p>Mapa satelital interactivo. Dibuja el polígono del terreno, calcula área, centroide y potencia instalable. Próximamente: cálculo PVGIS.</p>
-            <span class="footer-link">Abrir mapa →</span>
-          </a>
-
-        </div>
-      </section>
-
-      <section style="margin-top:40px;">
-        <h2 style="font-size:18px; margin-bottom:16px; color: var(--text-secondary);">En desarrollo</h2>
-        <div class="tools-grid">
-
-          <a class="tool-card disabled" href="herramientas/dimensionamiento.html">
-            <span class="badge">Próximamente</span>
-            <div class="icon-wrap">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                <line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>
-              </svg>
-            </div>
-            <h3>Dimensionamiento PV</h3>
-            <p>Cálculo de potencia, número de paneles, inversor y baterías a partir del consumo del cliente.</p>
-            <span class="footer-link">Ver detalles →</span>
-          </a>
-
-          <a class="tool-card disabled" href="herramientas/planilla-ocr.html">
-            <span class="badge">Próximamente</span>
-            <div class="icon-wrap">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/>
-                <line x1="9" y1="17" x2="15" y2="17"/>
-              </svg>
-            </div>
-            <h3>Análisis de planilla</h3>
-            <p>Subir foto o PDF de la factura eléctrica para extraer consumo y proponer un sistema solar preliminar.</p>
-            <span class="footer-link">Ver detalles →</span>
-          </a>
-
-        </div>
-      </section>
-
-      <footer style="margin-top:60px; padding-top:24px; border-top:1px solid var(--border); color: var(--text-muted); font-size:12px; text-align:center;">
-        NOVA ENERGIA · Portal interno · v1.0 (Fase 1) · 2026
-      </footer>
-    </main>
+  <div style="padding:40px; text-align:center; color:#7dc97d; font-family: 'Inter', sans-serif;">
+    Redirigiendo a Factor de Planta...
   </div>
-
-  <script src="assets/js/auth.js"></script>
-  <script>mountSidebar('inicio');</script>
 </body>
 </html>
