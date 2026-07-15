@@ -161,7 +161,7 @@
           <!-- Tipo de montaje con cards -->
           <div class="big-field">
             <label>Tipo de instalación</label>
-            <div class="mount-cards">
+            <div class="mount-cards" style="grid-template-columns: 1fr 1fr;">
               <div class="mount-card selected" data-tracking="0" onclick="seleccionarMontaje(this)">
                 <div class="mount-icon">🏗️</div>
                 <div class="mount-name">Fijo</div>
@@ -169,10 +169,6 @@
               <div class="mount-card" data-tracking="3" onclick="seleccionarMontaje(this)">
                 <div class="mount-icon">🔄</div>
                 <div class="mount-name">Seguidor 1 eje</div>
-              </div>
-              <div class="mount-card" data-tracking="2" onclick="seleccionarMontaje(this)">
-                <div class="mount-icon">☀️</div>
-                <div class="mount-name">Seguidor 2 ejes</div>
               </div>
             </div>
           </div>
@@ -231,7 +227,7 @@
       <div style="margin-top:20px; padding:12px 16px; background:var(--bg-card); border-radius:8px; border:1px solid var(--border);">
         <p style="font-size:12px; color:var(--text-muted); margin:0;">
           <strong style="color:var(--green-bright);">Fuentes consultadas:</strong>
-          NASA POWER (NASA/GSFC) · Open-Meteo (Copernicus ERA5) · NREL PVWatts (si configurada) · PVGIS-SARAH3 (Comisión Europea, cuando su servidor responde).
+          NASA POWER (NASA/GSFC) · Open-Meteo (Copernicus ERA5) · NREL PVWatts (si configurada) · PVGIS-SARAH3 (Comisión Europea, vía proxy Cloudflare).
           Herramienta comercial: para diseño final validar con PVsyst usando datos meteorológicos locales.
         </p>
       </div>
@@ -252,7 +248,7 @@
     let drawHandler = null;
     const LUGARES_KEY = 'nova_fp_lugares_v1';
     const NREL_KEY_STORE = 'nova_nrel_api_key';
-    const NREL_KEY_DEFAULT = 'uBxdBMhIg3a5WtRg8T5U3TYOPsuUfjuKuOy5YgaP';
+    const NREL_KEY_DEFAULT = 'ZxLfXfZoPeX7gdq3axjhQW8JBjG14AvqCHr1CoC7';
 
     function getCurrentEmail() {
       const sess = (typeof Auth !== 'undefined') ? Auth.current() : null;
@@ -260,9 +256,13 @@
     }
     function getNRELKey() {
       const k = localStorage.getItem(NREL_KEY_STORE);
-      if (k) return k;
-      localStorage.setItem(NREL_KEY_STORE, NREL_KEY_DEFAULT);
-      return NREL_KEY_DEFAULT;
+      // Auto-migrar keys viejas
+      const keysViejas = ['nPGVoCrGqPQNim3kQbnMCIP81fXZxdGAHYnQgJFz', 'uBxdBMhIg3a5WtRg8T5U3TYOPsuUfjuKuOy5YgaP'];
+      if (!k || keysViejas.indexOf(k) !== -1) {
+        localStorage.setItem(NREL_KEY_STORE, NREL_KEY_DEFAULT);
+        return NREL_KEY_DEFAULT;
+      }
+      return k;
     }
     function guardarAPIKey() {
       const v = document.getElementById('nrel-key').value.trim();
@@ -407,7 +407,7 @@
         return Promise.resolve({ fuente: 'NREL PVWatts', fuenteId: 'nrel', ok: false, error: 'API key no configurada' });
       }
       const opt = calcOptimalAngles(p);
-      const trackMap = { '0': 0, '3': 2, '2': 4 };
+      const trackMap = { '0': 0, '3': 2 };
       const params = new URLSearchParams({
         api_key: key, lat: p.lat.toFixed(6), lon: p.lon.toFixed(6),
         system_capacity: p.power, module_type: 0, losses: p.loss,
@@ -432,7 +432,7 @@
     // --- PVGIS ---
     function llamarPVGIS(p) {
       const opt = calcOptimalAngles(p);
-      const trackMap = { '0': 0, '3': 3, '2': 2 };
+      const trackMap = { '0': 0, '3': 3 };
       const tracking = trackMap[p.tracking] || 0;
       const q = new URLSearchParams({
         lat: p.lat.toFixed(6), lon: p.lon.toFixed(6),
@@ -444,11 +444,11 @@
         if (p.optimal === '1') q.append('optimalangles', 1);
         else { q.append('angle', p.angle); q.append('aspect', p.aspect); }
       } else if (tracking === 3) q.append('angle', opt.tilt);
-      return fetch('https://re.jrc.ec.europa.eu/api/v5_3/PVcalc?' + q).then(r => {
+      return fetch('https://pvgis-proxy.ricardo-lozada-or.workers.dev/?' + q).then(r => {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
       }).then(d => {
-        const keys = { '0': 'fixed', '3': 'horizontal_axis', '2': 'two_axis' };
+        const keys = { '0': 'fixed', '3': 'horizontal_axis' };
         const key = keys[p.tracking] || 'fixed';
         const totals = d.outputs.totals[key] || d.outputs.totals.fixed;
         const monthly = (d.outputs.monthly[key] || d.outputs.monthly.fixed).map(m => m.E_m);
@@ -456,7 +456,7 @@
         return { fuente: 'PVGIS-SARAH3', fuenteId: 'pvgis', ok: true, E_y,
           fp: E_y / (p.power * 8760), monthly };
       }).catch(err => ({ fuente: 'PVGIS-SARAH3', fuenteId: 'pvgis', ok: false,
-        error: err.message === 'Failed to fetch' ? 'Servidor PVGIS no responde (problema CORS conocido)' : err.message }));
+        error: err.message === 'Failed to fetch' ? 'Worker Cloudflare no responde (revisar deployment)' : err.message }));
     }
 
     // --- NASA POWER ---
@@ -509,19 +509,27 @@
     }
 
     // Cálculo compartido para fuentes que solo dan irradiancia
+    // Modelo simplificado ALINEADO para todas las fuentes de irradiancia
+    // Cerca del ecuador el efecto de tilt bajo es marginal (~2-4%)
+    // trackFactor: fijo=1.00, 1-eje horizontal=1.22 (valor conservador para Ecuador)
     function calcularConIrradiancia(p, ghi_kwh_m2_dia, tamb_c, nombreFuente, idFuente) {
       const meses = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
       const diasMes = [31,28,31,30,31,30,31,31,30,31,30,31];
       const opt = calcOptimalAngles(p);
       const tilt = opt.tilt;
-      const factorTilt = 1 + (tilt / 100) * (1 - Math.sin(Math.abs(p.lat) * Math.PI / 180));
-      const trackFactor = { '0': 1.00, '3': 1.25, '2': 1.35 };
+      const absLat = Math.abs(p.lat);
+      // Factor tilt: conservador y realista para Ecuador (efecto muy pequeño cerca de la línea ecuatorial)
+      // En lat 0-5° con tilt 10°: gain ~2-3%. En lat >20° con tilt óptimo: gain hasta 15%
+      const factorTilt = 1 + Math.min(tilt / 90 * 0.15, 0.15) * (absLat / 30);
+      // Factor tracking: fijo baseline, 1-eje N-S da +22% típico en Ecuador
+      const trackFactor = { '0': 1.00, '3': 1.22 };
       const fT = trackFactor[p.tracking] || 1.00;
       const lossFrac = 1 - (p.loss / 100);
       let monthly = [], E_y = 0;
       for (let i = 0; i < 12; i++) {
-        const ghi_m = ghi_kwh_m2_dia[meses[i]] * diasMes[i];
+        const ghi_m = (ghi_kwh_m2_dia[meses[i]] || 0) * diasMes[i];
         const poa_m = ghi_m * factorTilt * fT;
+        // Temperatura de celda ≈ Tamb + 25°C bajo sol pleno; degradación 0.4%/°C sobre 25°C
         const Tc_m = (tamb_c[meses[i]] || 20) + 25;
         const tempFactor = 1 - 0.004 * Math.max(Tc_m - 25, 0);
         const E_m = poa_m * p.power * lossFrac * tempFactor;
@@ -572,9 +580,9 @@
       const varFp = validos.reduce((a,f) => a + Math.pow(f.fp - fpProm, 2), 0) / validos.length;
       const cv = fpProm > 0 ? Math.sqrt(varFp) / fpProm * 100 : 0;
       let confClass, confLight, confText;
-      if (cv < 5)      { confClass='confidence-high'; confLight='light-green'; confText='ALTA CONFIABILIDAD · Fuentes coinciden (CV ' + cv.toFixed(1) + '%)'; }
-      else if (cv < 12) { confClass='confidence-med';  confLight='light-amber'; confText='CONFIABILIDAD MEDIA · Diferencias normales (CV ' + cv.toFixed(1) + '%)'; }
-      else             { confClass='confidence-low';  confLight='light-red';   confText='BAJA CONFIABILIDAD · Fuentes discrepan mucho (CV ' + cv.toFixed(1) + '%). Considera microclima local'; }
+      if (cv < 10)      { confClass='confidence-high'; confLight='light-green'; confText='ALTA CONFIABILIDAD · Fuentes coinciden (CV ' + cv.toFixed(1) + '%)'; }
+      else if (cv < 20) { confClass='confidence-med';  confLight='light-amber'; confText='CONFIABILIDAD MEDIA · Diferencias esperadas por modelos distintos (CV ' + cv.toFixed(1) + '%)'; }
+      else              { confClass='confidence-low';  confLight='light-red';   confText='BAJA CONFIABILIDAD · Discrepancia alta (CV ' + cv.toFixed(1) + '%). Revisar microclima o considerar validación con PVsyst'; }
 
       let html =
         '<div class="result-hero">' +
