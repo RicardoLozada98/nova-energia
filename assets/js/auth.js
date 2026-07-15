@@ -138,14 +138,7 @@ function renderSidebar(activeKey) {
     .join('');
 
   const links = [
-    { key: 'inicio',           href: '../index.html',                          label: 'Inicio',                   icon: 'M3 12l9-9 9 9M5 10v10h14V10' },
-    { section: 'Herramientas activas' },
-    { key: 'geoportales',      href: 'geoportales.html',                       label: 'Geoportales',              icon: 'M12 2a10 10 0 100 20 10 10 0 000-20zM2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20' },
-    { key: 'caida-voltaje',    href: 'caida-voltaje.html',                     label: 'Caída de voltaje',         icon: 'M13 2L3 14h7l-1 8 10-12h-7l1-8z' },
     { key: 'factor-planta',    href: 'factor-planta.html',                     label: 'Factor de planta',         icon: 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z M12 13a3 3 0 100-6 3 3 0 000 6z' },
-    { section: 'En desarrollo' },
-    { key: 'dimensionamiento', href: 'dimensionamiento.html',                  label: 'Dimensionamiento PV',      icon: 'M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2zM3 9h18M9 3v18' },
-    { key: 'planilla-ocr',     href: 'planilla-ocr.html',                      label: 'Análisis de planilla',     icon: 'M9 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2h-3M9 2v4h6V2M9 14h6M9 18h6M9 10h6' },
   ];
 
   // Si estamos en la raíz (index.html), los hrefs son distintos
