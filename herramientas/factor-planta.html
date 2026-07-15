@@ -209,25 +209,13 @@
 
           <!-- Resultados -->
           <div id="resultados-area"></div>
-
-          <!-- API Key NREL (colapsable) -->
-          <button class="adv-toggle" onclick="toggleNREL()" style="margin-top:12px;">🔑 Configurar API key NREL</button>
-          <div class="adv-panel" id="nrel-panel">
-            <label>API Key NREL</label>
-            <input type="text" id="nrel-key" class="form-input" style="font-size:11px; font-family:monospace;" />
-            <button class="btn btn-secondary" onclick="guardarAPIKey()" style="margin-top:6px; padding:6px 12px; font-size:11px;">Guardar clave</button>
-            <p style="font-size:10px; color:var(--text-muted); margin-top:6px;">
-              Sin API key funcional, NREL no se consulta. La triangulación usa las demás fuentes.
-              <a href="https://developer.nrel.gov/signup/" target="_blank" style="color:var(--green-primary);">Registrar clave gratis ↗</a>
-            </p>
-          </div>
         </div>
       </div>
 
       <div style="margin-top:20px; padding:12px 16px; background:var(--bg-card); border-radius:8px; border:1px solid var(--border);">
         <p style="font-size:12px; color:var(--text-muted); margin:0;">
           <strong style="color:var(--green-bright);">Fuentes consultadas:</strong>
-          NASA POWER (NASA/GSFC) · Open-Meteo (Copernicus ERA5) · NREL PVWatts (si configurada) · PVGIS-SARAH3 (Comisión Europea, vía proxy Cloudflare).
+          NASA POWER (NASA/GSFC) · Open-Meteo (Copernicus ERA5 histórico 10 años) · PVGIS-ERA5 (Comisión Europea, vía proxy Cloudflare).
           Herramienta comercial: para diseño final validar con PVsyst usando datos meteorológicos locales.
         </p>
       </div>
@@ -247,37 +235,16 @@
     let modoSeleccion = null;
     let drawHandler = null;
     const LUGARES_KEY = 'nova_fp_lugares_v1';
-    const NREL_KEY_STORE = 'nova_nrel_api_key';
-    const NREL_KEY_DEFAULT = 'ZxLfXfZoPeX7gdq3axjhQW8JBjG14AvqCHr1CoC7';
 
     function getCurrentEmail() {
       const sess = (typeof Auth !== 'undefined') ? Auth.current() : null;
       return sess ? sess.email.toLowerCase() : 'anonimo';
     }
-    function getNRELKey() {
-      const k = localStorage.getItem(NREL_KEY_STORE);
-      // Auto-migrar keys viejas
-      const keysViejas = ['nPGVoCrGqPQNim3kQbnMCIP81fXZxdGAHYnQgJFz', 'uBxdBMhIg3a5WtRg8T5U3TYOPsuUfjuKuOy5YgaP'];
-      if (!k || keysViejas.indexOf(k) !== -1) {
-        localStorage.setItem(NREL_KEY_STORE, NREL_KEY_DEFAULT);
-        return NREL_KEY_DEFAULT;
-      }
-      return k;
-    }
-    function guardarAPIKey() {
-      const v = document.getElementById('nrel-key').value.trim();
-      if (!v) { alert('Ingresa una API key.'); return; }
-      localStorage.setItem(NREL_KEY_STORE, v);
-      alert('API key guardada. Próxima consulta la usará.');
-    }
-    document.getElementById('nrel-key').value = getNRELKey();
 
     function toggleAvanzado() {
       document.getElementById('adv-panel').classList.toggle('visible');
     }
-    function toggleNREL() {
-      document.getElementById('nrel-panel').classList.toggle('visible');
-    }
+
 
     // ============ MAPA ============
     const map = L.map('map', { center: [-1.5, -78.5], zoom: 7 });
@@ -400,34 +367,6 @@
       return { tilt: p.angle, azimuth_pvgis: p.aspect, azimuth_pvwatts: (p.aspect + 180) % 360 };
     }
 
-    // --- NREL PVWatts ---
-    function llamarPVWatts(p) {
-      const key = getNRELKey();
-      if (!key || key.length < 20) {
-        return Promise.resolve({ fuente: 'NREL PVWatts', fuenteId: 'nrel', ok: false, error: 'API key no configurada' });
-      }
-      const opt = calcOptimalAngles(p);
-      const trackMap = { '0': 0, '3': 2 };
-      const params = new URLSearchParams({
-        api_key: key, lat: p.lat.toFixed(6), lon: p.lon.toFixed(6),
-        system_capacity: p.power, module_type: 0, losses: p.loss,
-        array_type: trackMap[p.tracking] || 0, tilt: opt.tilt, azimuth: opt.azimuth_pvwatts,
-        timeframe: 'monthly', radius: 0
-      });
-      const url = 'https://developer.nrel.gov/api/pvwatts/v8.json?' + params;
-      return fetch(url).then(r => r.json().then(d => {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        if (d.errors && d.errors.length) throw new Error(d.errors[0]);
-        return d;
-      })).then(d => {
-        const o = d.outputs;
-        const E_y = o.ac_annual;
-        return { fuente: 'NREL PVWatts', fuenteId: 'nrel', ok: true, E_y,
-          fp: (o.capacity_factor || (E_y / (p.power * 8760) * 100)) / 100,
-          monthly: o.ac_monthly };
-      }).catch(err => ({ fuente: 'NREL PVWatts', fuenteId: 'nrel', ok: false,
-        error: err.message === 'Failed to fetch' ? 'Sin respuesta (posible restricción de dominio en tu API key)' : err.message }));
-    }
 
     // --- PVGIS ---
     function llamarPVGIS(p) {
@@ -438,7 +377,7 @@
         lat: p.lat.toFixed(6), lon: p.lon.toFixed(6),
         peakpower: p.power, loss: p.loss, pvtechchoice: 'crystSi',
         mountingplace: 'free', trackingtype: tracking, outputformat: 'json',
-        browser: 0, raddatabase: 'PVGIS-SARAH3'
+        browser: 0, raddatabase: 'PVGIS-ERA5'
       });
       if (tracking === 0) {
         if (p.optimal === '1') q.append('optimalangles', 1);
@@ -453,9 +392,9 @@
         const totals = d.outputs.totals[key] || d.outputs.totals.fixed;
         const monthly = (d.outputs.monthly[key] || d.outputs.monthly.fixed).map(m => m.E_m);
         const E_y = totals.E_y;
-        return { fuente: 'PVGIS-SARAH3', fuenteId: 'pvgis', ok: true, E_y,
+        return { fuente: 'PVGIS-ERA5', fuenteId: 'pvgis', ok: true, E_y,
           fp: E_y / (p.power * 8760), monthly };
-      }).catch(err => ({ fuente: 'PVGIS-SARAH3', fuenteId: 'pvgis', ok: false,
+      }).catch(err => ({ fuente: 'PVGIS-ERA5', fuenteId: 'pvgis', ok: false,
         error: err.message === 'Failed to fetch' ? 'Worker Cloudflare no responde (revisar deployment)' : err.message }));
     }
 
@@ -557,7 +496,7 @@
       btn.innerHTML = '<span class="loading-spin"></span> Consultando fuentes...';
       document.getElementById('resultados-area').innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted); font-size:13px;"><span class="loading-spin"></span> Consultando 4 fuentes en paralelo...</div>';
 
-      Promise.all([llamarPVWatts(params), llamarPVGIS(params), llamarNASA(params), llamarOpenMeteo(params)])
+      Promise.all([llamarPVGIS(params), llamarNASA(params), llamarOpenMeteo(params)])
         .then(fuentes => mostrarResultados(fuentes, params))
         .finally(() => {
           btn.disabled = false;
