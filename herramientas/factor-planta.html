@@ -10,296 +10,229 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
   <style>
+    /* Layout comercial ultra simple */
+    .commercial-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; height: calc(100vh - 180px); min-height: 550px; }
+    @media (max-width: 1100px) { .commercial-layout { grid-template-columns: 1fr; height: auto; } .fp-map-wrap { height: 55vh; } }
+
+    .fp-map-wrap { position: relative; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+    #map { width: 100%; height: 100%; background: var(--bg-secondary); }
+
+    .side-panel { display: flex; flex-direction: column; gap: 14px; overflow-y: auto; padding-right: 4px; }
+
+    /* Campo grande con label prominente */
+    .big-field { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; }
+    .big-field label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); margin-bottom: 8px; font-weight: 600; }
+    .big-field .big-input { width: 100%; padding: 14px 16px; background: var(--bg-secondary); border: 2px solid var(--border); border-radius: 8px; color: var(--green-bright); font-size: 22px; font-weight: 700; font-family: var(--font-mono); text-align: center; }
+    .big-field .big-input:focus { outline: none; border-color: var(--green-primary); background: var(--bg-card); }
+    .big-field .hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; text-align: center; }
+
+    /* Selector de montaje con cards */
+    .mount-cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 8px; }
+    .mount-card { background: var(--bg-secondary); border: 2px solid var(--border); border-radius: 8px; padding: 10px 6px; text-align: center; cursor: pointer; transition: all 0.15s; }
+    .mount-card:hover { border-color: var(--green-dark); background: var(--bg-card); }
+    .mount-card.selected { border-color: var(--green-primary); background: rgba(125,201,125,0.12); }
+    .mount-card .mount-icon { font-size: 22px; margin-bottom: 4px; }
+    .mount-card .mount-name { font-size: 11px; font-weight: 600; color: var(--text-primary); line-height: 1.2; }
+    .mount-card.selected .mount-name { color: var(--green-bright); }
+
+    /* Botón calcular gigante */
+    .big-calc-btn { width: 100%; padding: 18px; font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; border-radius: 10px; border: none; background: var(--green-primary); color: var(--bg-primary); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .big-calc-btn:hover:not(:disabled) { background: var(--green-bright); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(125,201,125,0.3); }
+    .big-calc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Resultado principal grande */
+    .result-hero { background: linear-gradient(135deg, rgba(125,201,125,0.15) 0%, rgba(125,201,125,0.05) 100%); border: 2px solid var(--green-dark); border-radius: var(--radius-md); padding: 20px; text-align: center; }
+    .result-hero .fp-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--text-muted); margin-bottom: 6px; }
+    .result-hero .fp-value { font-size: 42px; font-weight: 700; color: var(--green-bright); font-family: var(--font-mono); line-height: 1; }
+    .result-hero .fp-sub { font-size: 12px; color: var(--text-secondary); margin-top: 8px; }
+    .result-hero .production { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(125,201,125,0.3); }
+    .result-hero .production-value { font-size: 22px; font-weight: 600; color: var(--text-primary); font-family: var(--font-mono); }
+    .result-hero .production-label { font-size: 11px; color: var(--text-muted); }
+
+    /* Semáforo de confianza */
+    .confidence { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 8px; margin-top: 10px; font-size: 12px; }
+    .confidence-high { background: rgba(125,201,125,0.15); color: var(--green-bright); border: 1px solid var(--green-dark); }
+    .confidence-med { background: rgba(230,184,107,0.15); color: #f0d8a8; border: 1px solid #a8783b; }
+    .confidence-low { background: rgba(230,115,115,0.15); color: #f0a7a7; border: 1px solid var(--accent-error); }
+    .confidence .light { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .light-green { background: var(--green-primary); box-shadow: 0 0 8px var(--green-primary); }
+    .light-amber { background: #e6b86b; box-shadow: 0 0 8px #e6b86b; }
+    .light-red { background: var(--accent-error); box-shadow: 0 0 8px var(--accent-error); }
+
+    /* Fuentes individuales (colapsable) */
+    .sources-toggle { background: none; border: none; color: var(--text-muted); font-size: 12px; cursor: pointer; padding: 8px 0; text-align: center; width: 100%; text-decoration: underline; }
+    .sources-toggle:hover { color: var(--green-primary); }
+    .sources-detail { display: none; margin-top: 8px; }
+    .sources-detail.visible { display: block; }
+    .source-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg-secondary); border-radius: 6px; margin-bottom: 4px; font-size: 12px; }
+    .source-row .src-name { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+    .source-row .src-pill { padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700; letter-spacing: 0.5px; }
+    .src-pill-nrel { background:#3a4a8a; color:#c4d0ff; }
+    .src-pill-pvgis { background:#4a8a3a; color:#d0ffc4; }
+    .src-pill-nasa  { background:#8a4a3a; color:#ffd0c4; }
+    .src-pill-openm { background:#3a7a8a; color:#c4e8ff; }
+    .source-row .src-fp { font-family: var(--font-mono); font-weight: 600; color: var(--text-primary); }
+    .source-row.src-fail .src-fp { color: var(--accent-error); font-size: 10px; font-style: italic; }
+
+    /* Toolbar mapa */
+    .fp-map-toolbar { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 1000; background: rgba(20, 27, 23, 0.92); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: 8px; padding: 6px; display: flex; gap: 4px; }
+    .fp-map-toolbar button { background: transparent; color: var(--text-secondary); border: none; padding: 7px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 6px; }
+    .fp-map-toolbar button:hover { background: var(--bg-card); color: var(--green-primary); }
+    .fp-map-toolbar button.active { background: var(--green-dark); color: var(--bg-primary); }
+
+    .fp-search { position: absolute; top: 12px; left: 12px; z-index: 1000; display: flex; gap: 4px; }
+    .fp-search input { background: rgba(20, 27, 23, 0.92); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: 6px; padding: 7px 12px; color: var(--text-primary); font-size: 12px; font-family: inherit; width: 240px; }
+    .fp-search input:focus { outline: none; border-color: var(--green-primary); }
+    .fp-search button { background: var(--green-dark); color: var(--bg-primary); border: none; border-radius: 6px; padding: 7px 12px; font-size: 12px; cursor: pointer; font-weight: 600; font-family: inherit; }
+
+    /* Tooltips y marcadores */
     .fp-area-tooltip { background: rgba(20, 27, 23, 0.92) !important; color: #a8e6a8 !important; border: 1px solid #4d8a4d !important; font-family: 'JetBrains Mono', monospace !important; font-size: 12px !important; padding: 6px 10px !important; border-radius: 6px !important; }
     .fp-area-tooltip:before { display: none; }
     .leaflet-draw-tooltip { background: rgba(20, 27, 23, 0.92) !important; color: #e8e8e8 !important; border: 1px solid #4d8a4d !important; font-family: 'Inter', sans-serif !important; }
-    .pv-bar-chart { width: 100%; display: block; margin-top: 8px; }
-    .pv-bar-chart rect.bar { fill: #5fb55f; transition: fill 0.2s; }
-    .pv-bar-chart rect.bar:hover { fill: #a8e6a8; }
-    .pv-bar-chart text { fill: #b8c2bc; font-family: 'Inter', sans-serif; font-size: 9px; }
-    .pv-bar-chart text.value { fill: #e8e8e8; font-size: 8px; }
-    .pv-bar-chart line.axis { stroke: #2a3530; stroke-width: 1; }
-    .loading-spin { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(125, 201, 125, 0.2); border-top-color: #7dc97d; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; }
+    .punto-marker { width: 14px; height: 14px; border-radius: 50%; background: #ffb347; border: 3px solid #0d1410; box-shadow: 0 0 0 2px #ffb347, 0 0 8px rgba(255,179,71,0.6); }
+    .lugar-marker { width: 8px; height: 8px; border-radius: 50%; background: rgba(125,201,125,0.6); border: 2px solid #0d1410; }
+
+    .loading-spin { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(13,20,16,0.2); border-top-color: var(--bg-primary); border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .compare-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
-    .compare-table th, .compare-table td { padding: 8px 6px; text-align: right; border-bottom: 1px solid #2a3530; }
-    .compare-table th { color: #b8c2bc; font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; }
-    .compare-table td:first-child, .compare-table th:first-child { text-align: left; color: #b8c2bc; }
-    .compare-table tr.best td { background: rgba(125, 201, 125, 0.08); color: #a8e6a8; font-weight: 600; }
-    .compare-table tr.avg td { background: rgba(168, 230, 168, 0.18); color: #a8e6a8; font-weight: 700; border-top: 2px solid #4d8a4d; border-bottom: none; }
-    .compare-table tr.error td { color: #e67373; font-style: italic; }
-    .compare-table .num { font-family: 'JetBrains Mono', monospace; }
-    .source-pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:600; letter-spacing:1px; margin-right:4px; }
-    .src-nrel  { background:#3a4a8a; color:#c4d0ff; }
-    .src-pvgis { background:#4a8a3a; color:#d0ffc4; }
-    .src-nasa  { background:#8a4a3a; color:#ffd0c4; }
 
-    .proj-bar { display: flex; gap: 8px; align-items: center; padding: 12px 16px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 12px; flex-wrap: wrap; }
-    .proj-bar select, .proj-bar input { font-size: 13px; }
-    .proj-bar .btn { padding: 7px 14px; font-size: 12px; }
-    .proj-name { background: var(--bg-secondary); border: 1px solid var(--border); color: var(--text-primary); padding: 7px 10px; border-radius: var(--radius-sm); font-size: 13px; min-width: 200px; font-family: inherit; }
+    /* Barra lugares (más compacta) */
+    .lugares-mini { display: flex; gap: 6px; align-items: center; padding: 8px 10px; background: rgba(125,201,125,0.04); border: 1px solid var(--green-dark); border-radius: 6px; margin-bottom: 10px; font-size: 12px; }
+    .lugares-mini select, .lugares-mini button { font-size: 11px; padding: 5px 8px; }
+    .lugares-mini select { flex: 1; min-width: 0; background: var(--bg-secondary); border: 1px solid var(--border); color: var(--text-primary); border-radius: 4px; }
+    .lugares-mini button { border: none; background: var(--bg-secondary); color: var(--text-secondary); border-radius: 4px; cursor: pointer; }
+    .lugares-mini button:hover { background: var(--green-dark); color: var(--bg-primary); }
 
-    .lugares-bar { display: flex; gap: 8px; align-items: center; padding: 10px 14px; background: rgba(125,201,125,0.04); border: 1px solid var(--green-dark); border-radius: var(--radius-md); margin-bottom: 12px; flex-wrap: wrap; }
-    .lugares-bar strong { color: var(--green-bright); font-size: 12px; }
-
-    .api-config { display: flex; gap: 8px; align-items: center; padding: 8px 12px; background: rgba(125, 201, 125, 0.05); border: 1px solid var(--green-dark); border-radius: var(--radius-sm); margin-bottom: 12px; font-size: 12px; }
-    .api-config input { flex: 1; background: var(--bg-secondary); border: 1px solid var(--border); color: var(--text-primary); padding: 6px 8px; border-radius: 4px; font-size: 11px; font-family: var(--font-mono); }
-    .api-config button { background: var(--green-dark); color: var(--bg-primary); border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; cursor: pointer; font-weight: 600; }
-
-    .fp-map-toolbar button.active { background: var(--green-dark) !important; color: var(--bg-primary) !important; }
-    .punto-marker {
-      width: 14px; height: 14px; border-radius: 50%;
-      background: #ffb347; border: 3px solid #0d1410;
-      box-shadow: 0 0 0 2px #ffb347, 0 0 8px rgba(255,179,71,0.6);
-    }
-    .lugar-marker {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: rgba(125,201,125,0.6); border: 2px solid #0d1410;
-    }
-
-    @media print {
-      @page { size: A4; margin: 18mm 14mm; }
-      body { background: white !important; color: black !important; }
-      .sidebar, .fp-search, .fp-map-toolbar, .proj-bar, .lugares-bar, .alert, .api-config, .btn, button, .leaflet-draw, .leaflet-control-zoom, .no-print { display: none !important; }
-      .main { margin-left: 0 !important; padding: 0 !important; max-width: 100% !important; }
-      .panel { background: white !important; border: 1px solid #ccc !important; color: black !important; page-break-inside: avoid; box-shadow: none !important; padding: 12px !important; margin-bottom: 10px !important; }
-      .panel h3 { color: #2d6b2d !important; border-bottom: 1px solid #999 !important; }
-      .fp-stat { background: #f7faf7 !important; color: black !important; border-left-color: #2d6b2d !important; }
-      .fp-stat .stat-label, .fp-stat .stat-sub { color: #555 !important; }
-      .fp-stat .stat-value { color: black !important; }
-      .fp-layout { grid-template-columns: 1fr !important; height: auto !important; display: block !important; }
-      .fp-map-wrap { height: 350px !important; page-break-after: avoid; margin-bottom: 12px !important; }
-      .compare-table, .compare-table th, .compare-table td { color: black !important; border-color: #ccc !important; }
-      .compare-table tr.best td { background: #f0fbf0 !important; color: #1d4d1d !important; }
-      .compare-table tr.avg td { background: #e8f5e8 !important; color: #1d4d1d !important; }
-      .pv-bar-chart text { fill: #444 !important; }
-      .pv-bar-chart rect.bar { fill: #4d8a4d !important; }
-      .page-header h1 { color: #1d4d1d !important; }
-      .page-header { border-bottom: 2px solid #4d8a4d !important; }
-      .text-muted, .text-small { color: #555 !important; }
-      .print-header { display: block !important; padding: 0 0 12px; border-bottom: 2px solid #4d8a4d; margin-bottom: 16px; }
-      .print-header .corp { font-size: 22px; font-weight: 700; color: #2d6b2d; letter-spacing: 3px; }
-      .print-header .sub { font-size: 11px; color: #666; letter-spacing: 2px; }
-      .print-header .meta { font-size: 10px; color: #888; margin-top: 6px; }
-    }
-    .print-header { display: none; }
-
-    .econ-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); align-items: center; font-size: 13px; }
-    .econ-row:last-child { border-bottom: none; }
-    .econ-row .lab { color: var(--text-secondary); }
-    .econ-row .val { font-family: var(--font-mono); color: var(--green-bright); font-weight: 600; text-align: right; }
-    .econ-row .val.neutral { color: var(--text-primary); }
+    /* Modo avanzado colapsable */
+    .adv-toggle { background: none; border: 1px dashed var(--border-light); color: var(--text-muted); font-size: 11px; padding: 8px; border-radius: 6px; width: 100%; cursor: pointer; margin-top: 8px; }
+    .adv-toggle:hover { border-color: var(--green-dark); color: var(--green-primary); }
+    .adv-panel { display: none; padding: 12px; background: var(--bg-secondary); border-radius: 6px; margin-top: 8px; }
+    .adv-panel.visible { display: block; }
+    .adv-panel .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .adv-panel label { font-size: 10px; text-transform: uppercase; color: var(--text-muted); }
+    .adv-panel input, .adv-panel select { font-size: 12px; padding: 6px 8px; }
   </style>
 </head>
 <body>
   <div class="app">
     <div id="sidebar-slot"></div>
     <main class="main">
-      <div class="print-header">
-        <div class="corp">NOVA ENERGIA</div>
-        <div class="sub">REPORTE DE FACTOR DE PLANTA — TRIANGULACIÓN DE FUENTES</div>
-        <div class="meta" id="print-meta"></div>
-      </div>
-
       <header class="page-header">
-        <h1>Factor de Planta — Triangulación de fuentes</h1>
-        <p class="subtitle">Cálculo simultáneo con NREL PVWatts, PVGIS-SARAH3 y NASA POWER. Dibuja polígono o marca un punto.</p>
+        <h1>Factor de Planta</h1>
+        <p class="subtitle">Herramienta comercial · Marca ubicación, ingresa potencia, obtén factor de planta promedio de fuentes internacionales.</p>
       </header>
 
-      <div class="api-config no-print">
-        <strong>API Key NREL:</strong>
-        <input type="text" id="nrel-key" placeholder="Tu API key de NREL aquí..." />
-        <button onclick="guardarAPIKey()">Guardar</button>
-        <a href="https://developer.nrel.gov/signup/" target="_blank" rel="noopener" style="font-size:11px;">¿No tienes? Regístrate ↗</a>
-      </div>
-
-      <div class="lugares-bar no-print">
-        <strong>📍 MIS LUGARES:</strong>
-        <select id="lugar-load" class="form-select" style="width:auto; min-width:240px;" onchange="cargarLugar(this.value)">
-          <option value="">— Seleccionar lugar guardado —</option>
+      <div class="lugares-mini">
+        <strong style="color:var(--green-bright); font-size:11px;">📍 LUGARES:</strong>
+        <select id="lugar-load" onchange="cargarLugar(this.value)">
+          <option value="">— Cargar lugar guardado —</option>
         </select>
-        <button class="btn btn-secondary" onclick="guardarLugar()" style="padding:7px 12px; font-size:12px;">💾 Guardar lugar actual</button>
-        <button class="btn btn-danger" onclick="eliminarLugar()" style="padding:7px 12px; font-size:12px;">🗑 Eliminar</button>
-        <span style="margin-left:auto; font-size:11px; color: var(--text-muted);" id="lugares-info">— sin lugares guardados —</span>
+        <button onclick="guardarLugar()">💾 Guardar</button>
+        <button onclick="eliminarLugar()">🗑</button>
       </div>
 
-      <div class="proj-bar no-print">
-        <strong style="font-size:13px;">📂 PROYECTO:</strong>
-        <input type="text" id="proj-name" class="proj-name" placeholder="Nombre del proyecto..." />
-        <button class="btn btn-primary" onclick="guardarProyecto()" style="width:auto;">Guardar</button>
-        <select id="proj-load" class="form-select" style="width:auto; min-width:200px;" onchange="cargarProyecto(this.value)">
-          <option value="">— Cargar proyecto guardado —</option>
-        </select>
-        <button class="btn btn-danger" onclick="eliminarProyecto()" style="padding:7px 14px; font-size:12px;">Eliminar</button>
-        <button class="btn btn-secondary" onclick="window.print()" style="margin-left:auto;">📄 Generar PDF</button>
-      </div>
-
-      <div class="alert alert-info mb-3 no-print">
-        <strong>Modos:</strong> usa <strong>Dibujar polígono</strong> para terreno (calcula área + potencia instalable) o <strong>Marcar punto</strong> para una ubicación rápida (un solo click). Después define parámetros y pulsa <strong>Calcular triangulación</strong>.
-      </div>
-
-      <div class="fp-layout">
+      <div class="commercial-layout">
         <div class="fp-map-wrap">
-          <div class="fp-search no-print">
+          <div class="fp-search">
             <input type="text" id="searchInput" placeholder="Buscar lugar o lat,lon" />
             <button onclick="buscarLugar()">Ir</button>
           </div>
-          <div class="fp-map-toolbar no-print">
-            <button id="btn-poligono" onclick="iniciarModoPoligono()">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 19 8 19 16 12 22 5 16 5 8 12 2"/></svg>
-              Dibujar polígono
-            </button>
-            <button id="btn-punto" onclick="iniciarModoPunto()">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              Marcar punto
-            </button>
-            <button id="btn-clear" onclick="limpiarMapa()">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 01-2 2H9a2 2 0 01-2-2L5 6"/></svg>
-              Limpiar
-            </button>
-            <button id="btn-toggle-layer" onclick="toggleEtiquetas()">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-              Etiquetas
-            </button>
+          <div class="fp-map-toolbar">
+            <button id="btn-poligono" onclick="iniciarModoPoligono()">🔷 Polígono</button>
+            <button id="btn-punto" onclick="iniciarModoPunto()">📍 Punto</button>
+            <button id="btn-clear" onclick="limpiarMapa()">🗑 Limpiar</button>
           </div>
           <div id="map"></div>
         </div>
 
-        <div class="fp-side">
-          <div class="panel">
-            <h3>1. Ubicación</h3>
-            <div id="poly-info">
-              <div class="fp-empty">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 19 8 19 16 12 22 5 16 5 8 12 2"/></svg>
-                <div>Sin ubicación seleccionada.</div>
-                <div style="margin-top:8px; font-size:12px;">Pulsa <strong>Dibujar polígono</strong> o <strong>Marcar punto</strong>, o carga un lugar guardado.</div>
+        <div class="side-panel">
+          <!-- Estado ubicación -->
+          <div id="ubicacion-status" style="padding:12px; background: var(--bg-secondary); border-radius:8px; border-left:3px solid var(--border);">
+            <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Ubicación</div>
+            <div style="font-size:13px; color:var(--text-secondary); margin-top:4px;">Sin ubicación seleccionada — usa polígono o punto</div>
+          </div>
+
+          <!-- Potencia -->
+          <div class="big-field">
+            <label>Potencia del proyecto</label>
+            <input type="number" id="pv-power" class="big-input" value="1000" min="1" step="10" />
+            <div class="hint">kilowatt-pico (kWp)</div>
+          </div>
+
+          <!-- Tipo de montaje con cards -->
+          <div class="big-field">
+            <label>Tipo de instalación</label>
+            <div class="mount-cards">
+              <div class="mount-card selected" data-tracking="0" onclick="seleccionarMontaje(this)">
+                <div class="mount-icon">🏗️</div>
+                <div class="mount-name">Fijo</div>
+              </div>
+              <div class="mount-card" data-tracking="3" onclick="seleccionarMontaje(this)">
+                <div class="mount-icon">🔄</div>
+                <div class="mount-name">Seguidor 1 eje</div>
+              </div>
+              <div class="mount-card" data-tracking="2" onclick="seleccionarMontaje(this)">
+                <div class="mount-icon">☀️</div>
+                <div class="mount-name">Seguidor 2 ejes</div>
               </div>
             </div>
           </div>
 
-          <div class="panel">
-            <h3>2. Parámetros del sistema</h3>
-            <div class="form-group">
-              <label>Potencia pico (kWp)</label>
-              <input type="number" id="pv-power" class="form-input" value="1000" min="0.1" step="10" />
-            </div>
+          <!-- Botón calcular -->
+          <button class="big-calc-btn" id="btn-calc" onclick="calcular()" disabled>
+            📊 Calcular Factor de Planta
+          </button>
+
+          <!-- Panel avanzado colapsable (para ingenieros) -->
+          <button class="adv-toggle" onclick="toggleAvanzado()">⚙ Modo avanzado (opcional)</button>
+          <div class="adv-panel" id="adv-panel">
             <div class="form-row">
-              <div class="form-group">
-                <label>Tipo de montaje</label>
-                <select id="pv-tracking" class="form-select">
-                  <option value="0" selected>Fijo (estructura)</option>
-                  <option value="3">1-eje horizontal</option>
-                  <option value="2">2 ejes</option>
-                </select>
+              <div>
+                <label>Inclinación (°)</label>
+                <input type="number" id="pv-angle" class="form-input" value="10" min="0" max="90" step="1" />
               </div>
-              <div class="form-group">
-                <label>Optimizar ángulos</label>
+              <div>
+                <label>Azimut (°)</label>
+                <input type="number" id="pv-aspect" class="form-input" value="0" step="1" />
+              </div>
+            </div>
+            <div class="form-row" style="margin-top:8px;">
+              <div>
+                <label>Pérdidas (%)</label>
+                <input type="number" id="pv-loss" class="form-input" value="14" min="0" max="40" step="0.5" />
+              </div>
+              <div>
+                <label>Optimizar</label>
                 <select id="pv-optimal" class="form-select">
                   <option value="1" selected>Sí (auto)</option>
                   <option value="0">No (manual)</option>
                 </select>
               </div>
             </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Inclinación (°)</label>
-                <input type="number" id="pv-angle" class="form-input" value="10" min="0" max="90" step="1" />
-              </div>
-              <div class="form-group">
-                <label>Azimut (°)</label>
-                <input type="number" id="pv-aspect" class="form-input" value="0" min="-180" max="360" step="1" />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Pérdidas (%)</label>
-                <input type="number" id="pv-loss" class="form-input" value="14" min="0" max="40" step="0.5" />
-              </div>
-              <div class="form-group">
-                <label>Tecnología</label>
-                <select id="pv-tech" class="form-select">
-                  <option value="crystSi" selected>Si cristalino</option>
-                  <option value="premium">Si premium</option>
-                  <option value="thin">Película delgada</option>
-                </select>
-              </div>
-            </div>
-            <button class="btn btn-primary" id="btn-calc" onclick="calcularTriangulacion()" disabled>
-              Selecciona ubicación primero
-            </button>
-            <p class="text-muted text-small mt-3">
-              Para Ecuador (hemisferio sur), inclinación óptima ≈ 5-12° con azimut hacia el <strong>norte</strong>.
+            <p style="font-size:11px; color:var(--text-muted); margin-top:8px;">Por defecto se usan valores óptimos para Ecuador (hemisferio sur, azimut norte, 10° inclinación, 14% pérdidas, silicio cristalino).</p>
+          </div>
+
+          <!-- Resultados -->
+          <div id="resultados-area"></div>
+
+          <!-- API Key NREL (colapsable) -->
+          <button class="adv-toggle" onclick="toggleNREL()" style="margin-top:12px;">🔑 Configurar API key NREL</button>
+          <div class="adv-panel" id="nrel-panel">
+            <label>API Key NREL</label>
+            <input type="text" id="nrel-key" class="form-input" style="font-size:11px; font-family:monospace;" />
+            <button class="btn btn-secondary" onclick="guardarAPIKey()" style="margin-top:6px; padding:6px 12px; font-size:11px;">Guardar clave</button>
+            <p style="font-size:10px; color:var(--text-muted); margin-top:6px;">
+              Sin API key funcional, NREL no se consulta. La triangulación usa las demás fuentes.
+              <a href="https://developer.nrel.gov/signup/" target="_blank" style="color:var(--green-primary);">Registrar clave gratis ↗</a>
             </p>
           </div>
-
-          <div class="panel">
-            <h3>3. Resultados — Triangulación</h3>
-            <div id="pv-results">
-              <p class="text-muted text-small">Aquí aparecerán los factores de planta de las 3 fuentes y el promedio.</p>
-            </div>
-          </div>
-
-          <div class="panel">
-            <h3>4. Análisis económico</h3>
-            <div class="form-row">
-              <div class="form-group">
-                <label>CAPEX ($/Wp)</label>
-                <input type="number" id="ec-capex" class="form-input" value="0.95" min="0.1" step="0.05" oninput="actualizarEconomico()" />
-              </div>
-              <div class="form-group">
-                <label>Tarifa ($/kWh)</label>
-                <input type="number" id="ec-tarifa" class="form-input" value="0.085" min="0.01" step="0.005" oninput="actualizarEconomico()" />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>O&M (% CAPEX)</label>
-                <input type="number" id="ec-om" class="form-input" value="1.5" min="0" step="0.1" oninput="actualizarEconomico()" />
-              </div>
-              <div class="form-group">
-                <label>Vida útil (años)</label>
-                <input type="number" id="ec-vida" class="form-input" value="25" min="1" max="40" step="1" oninput="actualizarEconomico()" />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Degradación (%/año)</label>
-                <input type="number" id="ec-degr" class="form-input" value="0.55" min="0" max="2" step="0.05" oninput="actualizarEconomico()" />
-              </div>
-              <div class="form-group">
-                <label>Tasa descuento (%)</label>
-                <input type="number" id="ec-tasa" class="form-input" value="8" min="0" max="20" step="0.5" oninput="actualizarEconomico()" />
-              </div>
-            </div>
-            <div id="ec-results" style="margin-top:12px;">
-              <p class="text-muted text-small">Calcula primero el factor de planta.</p>
-            </div>
-          </div>
-
-          <div class="panel" id="panel-potencia">
-            <h3>Potencia instalable (solo polígono)</h3>
-            <div id="pot-info">
-              <p class="text-muted text-small">Solo aplica cuando dibujas un polígono. Con un punto único no hay área para estimar.</p>
-            </div>
-          </div>
         </div>
       </div>
 
-      <div id="pv-extra" style="margin-top:24px; display:none;">
-        <div class="panel">
-          <h3 style="border:none; padding:0; margin:0 0 12px;">Producción mensual estimada (promedio de fuentes)</h3>
-          <div id="pv-monthly"></div>
-        </div>
-      </div>
-
-      <div class="panel" style="margin-top:24px;">
-        <h3 style="border:none; padding:0; margin:0 0 8px;">Notas técnicas</h3>
-        <p class="text-small text-muted">
-          <strong>Fuentes:</strong>
-          <span class="source-pill src-nrel">NREL</span> PVWatts v8 + NSRDB ·
-          <span class="source-pill src-pvgis">PVGIS</span> SARAH3 ·
-          <span class="source-pill src-nasa">NASA</span> POWER + Liu-Jordan simplificado.
-          <strong>Lugares guardados</strong>: por usuario (vinculados a tu sesión). <strong>Proyectos</strong>: cálculos completos con resultados. Datos en localStorage del navegador (no sincroniza entre dispositivos sin backend).
+      <div style="margin-top:20px; padding:12px 16px; background:var(--bg-card); border-radius:8px; border:1px solid var(--border);">
+        <p style="font-size:12px; color:var(--text-muted); margin:0;">
+          <strong style="color:var(--green-bright);">Fuentes consultadas:</strong>
+          NASA POWER (NASA/GSFC) · Open-Meteo (Copernicus ERA5) · NREL PVWatts (si configurada) · PVGIS-SARAH3 (Comisión Europea, cuando su servidor responde).
+          Herramienta comercial: para diseño final validar con PVsyst usando datos meteorológicos locales.
         </p>
       </div>
     </main>
@@ -313,11 +246,10 @@
     mountSidebar('factor-planta');
 
     // ============ ESTADO ============
-    let ubicacionActual = null;  // { tipo: 'punto'|'poligono', lat, lon, areaM2?, geojson? }
-    let resultadosTri = null;
-    let modoSeleccion = null;    // null | 'punto' | 'poligono'
+    let ubicacionActual = null;
+    let tipoMontaje = '0';
+    let modoSeleccion = null;
     let drawHandler = null;
-    const PROJ_KEY = 'nova_fp_proyectos_v1';
     const LUGARES_KEY = 'nova_fp_lugares_v1';
     const NREL_KEY_STORE = 'nova_nrel_api_key';
     const NREL_KEY_DEFAULT = 'uBxdBMhIg3a5WtRg8T5U3TYOPsuUfjuKuOy5YgaP';
@@ -326,107 +258,83 @@
       const sess = (typeof Auth !== 'undefined') ? Auth.current() : null;
       return sess ? sess.email.toLowerCase() : 'anonimo';
     }
-
     function getNRELKey() {
       const k = localStorage.getItem(NREL_KEY_STORE);
-      // Forzar nueva key si la vieja sigue cargada (auto-migración)
-      if (k === 'nPGVoCrGqPQNim3kQbnMCIP81fXZxdGAHYnQgJFz' || !k) {
-        localStorage.setItem(NREL_KEY_STORE, NREL_KEY_DEFAULT);
-        return NREL_KEY_DEFAULT;
-      }
-      return k;
+      if (k) return k;
+      localStorage.setItem(NREL_KEY_STORE, NREL_KEY_DEFAULT);
+      return NREL_KEY_DEFAULT;
     }
-    function setNRELKey(k) { localStorage.setItem(NREL_KEY_STORE, k); }
     function guardarAPIKey() {
       const v = document.getElementById('nrel-key').value.trim();
-      if (!v) { alert('Pega una API key válida.'); return; }
-      setNRELKey(v);
-      alert('API key guardada.');
+      if (!v) { alert('Ingresa una API key.'); return; }
+      localStorage.setItem(NREL_KEY_STORE, v);
+      alert('API key guardada. Próxima consulta la usará.');
     }
     document.getElementById('nrel-key').value = getNRELKey();
 
-    // ============ MAPA ============
-    const map = L.map('map', { center: [-1.5, -78.5], zoom: 7, zoomControl: true });
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      { attribution: 'Tiles &copy; Esri', maxZoom: 19 }
-    ).addTo(map);
-    const capaEtiquetas = L.tileLayer(
-      'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-      { attribution: '', maxZoom: 19, opacity: 0.9 }
-    );
-    let etiquetasVisibles = false;
-    function toggleEtiquetas() {
-      etiquetasVisibles = !etiquetasVisibles;
-      const btn = document.getElementById('btn-toggle-layer');
-      if (etiquetasVisibles) { capaEtiquetas.addTo(map); btn.classList.add('active'); }
-      else { map.removeLayer(capaEtiquetas); btn.classList.remove('active'); }
+    function toggleAvanzado() {
+      document.getElementById('adv-panel').classList.toggle('visible');
+    }
+    function toggleNREL() {
+      document.getElementById('nrel-panel').classList.toggle('visible');
     }
 
-    const drawnItems = new L.FeatureGroup();
-    map.addLayer(drawnItems);
+    // ============ MAPA ============
+    const map = L.map('map', { center: [-1.5, -78.5], zoom: 7 });
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      { attribution: 'Esri', maxZoom: 19 }).addTo(map);
+    const drawnItems = new L.FeatureGroup().addTo(map);
+    const lugaresLayer = new L.FeatureGroup().addTo(map);
 
-    // Capa para mostrar todos los lugares guardados como referencias
-    const lugaresLayer = new L.FeatureGroup();
-    map.addLayer(lugaresLayer);
+    // ============ MONTAJE ============
+    function seleccionarMontaje(el) {
+      document.querySelectorAll('.mount-card').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+      tipoMontaje = el.dataset.tracking;
+    }
 
+    // ============ DIBUJO ============
     function actualizarBotonesModo() {
       document.getElementById('btn-poligono').classList.toggle('active', modoSeleccion === 'poligono');
       document.getElementById('btn-punto').classList.toggle('active', modoSeleccion === 'punto');
       map.getContainer().style.cursor = modoSeleccion === 'punto' ? 'crosshair' : '';
     }
 
-    // ============ MODO POLÍGONO ============
     function iniciarModoPoligono() {
       drawnItems.clearLayers();
       ubicacionActual = null;
-      resultadosTri = null;
-      actualizarPanelUbicacion(null);
+      actualizarUbicacionStatus();
       limpiarResultados();
       if (drawHandler) { drawHandler.disable(); drawHandler = null; }
       modoSeleccion = 'poligono';
       drawHandler = new L.Draw.Polygon(map, {
-        shapeOptions: { color: '#7dc97d', weight: 3, opacity: 0.9, fillColor: '#7dc97d', fillOpacity: 0.18 },
-        showArea: false, allowIntersection: false, guidelineDistance: 10
+        shapeOptions: { color: '#7dc97d', weight: 3, fillColor: '#7dc97d', fillOpacity: 0.18 },
+        showArea: false, allowIntersection: false
       });
       drawHandler.enable();
       actualizarBotonesModo();
     }
 
-    map.on(L.Draw.Event.CREATED, function (e) {
+    map.on(L.Draw.Event.CREATED, function(e) {
       const layer = e.layer;
       drawnItems.addLayer(layer);
       drawHandler = null;
       modoSeleccion = null;
       actualizarBotonesModo();
-      analizarPoligono(layer.toGeoJSON(), layer);
+      const gj = layer.toGeoJSON();
+      const areaM2 = turf.area(gj);
+      const c = turf.centroid(gj);
+      const [lon, lat] = c.geometry.coordinates;
+      layer.bindTooltip('<strong>' + (areaM2/10000).toFixed(2) + ' ha</strong>',
+        { permanent: true, direction: 'center', className: 'fp-area-tooltip' }).openTooltip();
+      ubicacionActual = { tipo: 'poligono', lat, lon, areaM2, geojson: gj };
+      actualizarUbicacionStatus();
     });
 
-    function analizarPoligono(gj, layer) {
-      const areaM2 = turf.area(gj);
-      const areaHa = areaM2 / 10000;
-      const centroide = turf.centroid(gj);
-      const [lon, lat] = centroide.geometry.coordinates;
-      ubicacionActual = { tipo: 'poligono', lat: lat, lon: lon, areaM2: areaM2, geojson: gj };
-      layer.bindTooltip('<strong>' + areaHa.toFixed(2) + ' ha</strong><br>' + formatNum(areaM2, 0) + ' m²',
-        { permanent: true, direction: 'center', className: 'fp-area-tooltip' }).openTooltip();
-      const centroideIcon = L.divIcon({
-        className: 'centroide-marker',
-        html: '<div style="width:10px;height:10px;border-radius:50%;background:#a8e6a8;border:2px solid #0d1410;box-shadow:0 0 0 2px #a8e6a8;"></div>',
-        iconSize: [10, 10], iconAnchor: [5, 5]
-      });
-      L.marker([lat, lon], { icon: centroideIcon })
-        .bindPopup('<strong>Centroide</strong><br>' + lat.toFixed(6) + '°, ' + lon.toFixed(6) + '°')
-        .addTo(drawnItems);
-      actualizarPanelUbicacion();
-      habilitarBotonCalcular();
-    }
-
-    // ============ MODO PUNTO ============
     function iniciarModoPunto() {
       drawnItems.clearLayers();
       ubicacionActual = null;
-      resultadosTri = null;
-      actualizarPanelUbicacion(null);
+      actualizarUbicacionStatus();
       limpiarResultados();
       if (drawHandler) { drawHandler.disable(); drawHandler = null; }
       modoSeleccion = 'punto';
@@ -435,570 +343,322 @@
 
     map.on('click', function(e) {
       if (modoSeleccion !== 'punto') return;
-      const lat = e.latlng.lat;
-      const lon = e.latlng.lng;
-      colocarPunto(lat, lon);
+      colocarPunto(e.latlng.lat, e.latlng.lng);
       modoSeleccion = null;
       actualizarBotonesModo();
     });
 
     function colocarPunto(lat, lon) {
       drawnItems.clearLayers();
-      const puntoIcon = L.divIcon({
-        className: 'punto-marker-wrap',
-        html: '<div class="punto-marker"></div>',
-        iconSize: [14, 14], iconAnchor: [7, 7]
-      });
-      const marker = L.marker([lat, lon], { icon: puntoIcon })
-        .bindPopup('<strong>Ubicación seleccionada</strong><br>' + lat.toFixed(6) + '°, ' + lon.toFixed(6) + '°')
-        .bindTooltip('📍 ' + lat.toFixed(4) + ', ' + lon.toFixed(4),
-          { permanent: true, direction: 'top', offset: [0, -8], className: 'fp-area-tooltip' });
-      drawnItems.addLayer(marker);
-      ubicacionActual = { tipo: 'punto', lat: lat, lon: lon, areaM2: null, geojson: null };
-      actualizarPanelUbicacion();
-      habilitarBotonCalcular();
+      const icon = L.divIcon({ className: 'punto-marker-wrap', html: '<div class="punto-marker"></div>', iconSize: [14, 14], iconAnchor: [7, 7] });
+      L.marker([lat, lon], { icon })
+        .bindTooltip('📍 ' + lat.toFixed(4) + ', ' + lon.toFixed(4), { permanent: true, direction: 'top', offset: [0, -8], className: 'fp-area-tooltip' })
+        .addTo(drawnItems);
+      ubicacionActual = { tipo: 'punto', lat, lon, areaM2: null };
+      actualizarUbicacionStatus();
     }
 
     function limpiarMapa() {
       drawnItems.clearLayers();
       ubicacionActual = null;
-      resultadosTri = null;
       if (drawHandler) { drawHandler.disable(); drawHandler = null; }
       modoSeleccion = null;
       actualizarBotonesModo();
-      actualizarPanelUbicacion(null);
+      actualizarUbicacionStatus();
       limpiarResultados();
-      document.getElementById('lugar-load').value = '';
     }
 
-    function habilitarBotonCalcular() {
+    function actualizarUbicacionStatus() {
+      const div = document.getElementById('ubicacion-status');
       const btn = document.getElementById('btn-calc');
-      btn.disabled = false;
-      btn.textContent = 'Calcular triangulación (3 fuentes)';
-    }
-
-    function actualizarPanelUbicacion(force) {
-      const polyInfo = document.getElementById('poly-info');
-      const potInfo = document.getElementById('pot-info');
-      const panelPot = document.getElementById('panel-potencia');
-
-      if (force === null || !ubicacionActual) {
-        polyInfo.innerHTML = '<div class="fp-empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 19 8 19 16 12 22 5 16 5 8 12 2"/></svg><div>Sin ubicación seleccionada.</div></div>';
-        potInfo.innerHTML = '<p class="text-muted text-small">Solo aplica cuando dibujas un polígono.</p>';
-        panelPot.style.display = 'block';
-        const btn = document.getElementById('btn-calc');
+      if (!ubicacionActual) {
+        div.style.borderLeftColor = 'var(--border)';
+        div.innerHTML = '<div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Ubicación</div><div style="font-size:13px; color:var(--text-secondary); margin-top:4px;">Sin ubicación seleccionada</div>';
         btn.disabled = true;
-        btn.textContent = 'Selecciona ubicación primero';
         return;
       }
-
       const u = ubicacionActual;
-      if (u.tipo === 'poligono') {
-        const areaHa = u.areaM2 / 10000;
-        polyInfo.innerHTML =
-          '<div class="fp-stat"><span class="stat-label">Tipo</span><span class="stat-value">🔷 POLÍGONO</span></div>' +
-          '<div class="fp-stat"><span class="stat-label">Área del terreno</span>' +
-          '<span class="stat-value">' + areaHa.toFixed(3) + ' ha</span>' +
-          '<span class="stat-sub">' + formatNum(u.areaM2, 0) + ' m²</span></div>' +
-          '<div class="fp-stat"><span class="stat-label">Centroide (lat, lon)</span>' +
-          '<span class="stat-value">' + u.lat.toFixed(6) + ', ' + u.lon.toFixed(6) + '</span>' +
-          '<span class="stat-sub"><a href="https://www.google.com/maps/@' + u.lat + ',' + u.lon + ',18z" target="_blank" rel="noopener" style="font-size:11px;">Ver en Google Maps ↗</a></span></div>';
-
-        const densidades = [
-          { tipo: 'Fijo (norte, 10°)', densidad: 6.5, gcr: 0.45 },
-          { tipo: '1-eje horizontal',  densidad: 4.5, gcr: 0.35 },
-          { tipo: '2-ejes',            densidad: 3.5, gcr: 0.27 }
-        ];
-        potInfo.innerHTML = '<p class="text-muted text-small mb-3">Densidades típicas en Ecuador.</p>' +
-          densidades.map(function(d) {
-            var kWp = (u.areaM2 * d.densidad / 1000);
-            return '<div class="fp-stat"><span class="stat-label">' + d.tipo + '</span>' +
-                   '<span class="stat-value">' + formatNum(kWp, 0) + ' kWp <span style="font-size:12px; color: var(--text-muted);">(' + (kWp/1000).toFixed(3) + ' MWp)</span></span>' +
-                   '<span class="stat-sub">' + d.densidad + ' Wp/m² · GCR ≈ ' + d.gcr + '</span></div>';
-          }).join('');
-        panelPot.style.display = 'block';
-      } else {
-        // Punto
-        polyInfo.innerHTML =
-          '<div class="fp-stat" style="border-left-color:#ffb347;"><span class="stat-label">Tipo</span><span class="stat-value">📍 PUNTO ÚNICO</span></div>' +
-          '<div class="fp-stat"><span class="stat-label">Coordenadas (lat, lon)</span>' +
-          '<span class="stat-value">' + u.lat.toFixed(6) + ', ' + u.lon.toFixed(6) + '</span>' +
-          '<span class="stat-sub"><a href="https://www.google.com/maps/@' + u.lat + ',' + u.lon + ',18z" target="_blank" rel="noopener" style="font-size:11px;">Ver en Google Maps ↗</a></span></div>' +
-          '<div class="alert alert-info" style="font-size:11px; margin-top:8px;">Modo punto: el cálculo usará estas coordenadas exactas. Para estimar potencia instalable cambia a modo polígono.</div>';
-        panelPot.style.display = 'none';
-      }
+      div.style.borderLeftColor = 'var(--green-primary)';
+      const tipoTxt = u.tipo === 'punto' ? '📍 Punto' : ('🔷 Polígono · ' + (u.areaM2/10000).toFixed(2) + ' ha');
+      div.innerHTML = '<div style="font-size:11px; color:var(--green-bright); text-transform:uppercase; letter-spacing:1px;">' + tipoTxt + '</div><div style="font-size:12px; color:var(--text-primary); margin-top:4px; font-family:monospace;">' + u.lat.toFixed(5) + ', ' + u.lon.toFixed(5) + '</div>';
+      btn.disabled = false;
     }
 
     function limpiarResultados() {
-      document.getElementById('pv-results').innerHTML = '<p class="text-muted text-small">Aquí aparecerán los factores de planta y el promedio.</p>';
-      document.getElementById('ec-results').innerHTML = '<p class="text-muted text-small">Calcula primero el factor de planta.</p>';
-      document.getElementById('pv-extra').style.display = 'none';
+      document.getElementById('resultados-area').innerHTML = '';
     }
 
-    // ============ FUENTE 1: NREL PVWATTS ============
-    function pvwattsURL(p) {
-      const trackMap = { '0': 0, '3': 2, '2': 4 };
-      const arrayType = trackMap[p.tracking] !== undefined ? trackMap[p.tracking] : 0;
-      const modMap = { 'crystSi': 0, 'premium': 1, 'thin': 2 };
-      const moduleType = modMap[p.tech] !== undefined ? modMap[p.tech] : 0;
-      let tilt = p.angle;
-      let azimuth = (p.aspect + 180) % 360;
+    // ============ FUENTES DE DATOS ============
+    function calcOptimalAngles(p) {
       if (p.optimal === '1') {
-        tilt = Math.min(Math.max(Math.abs(p.lat), 5), 30);
-        azimuth = p.lat < 0 ? 0 : 180;
+        return {
+          tilt: Math.min(Math.max(Math.abs(p.lat), 5), 30),
+          azimuth_pvgis: p.lat < 0 ? 180 : 0,  // PVGIS: 0=sur, 180=norte. Ecuador (lat<0) → norte = 180
+          azimuth_pvwatts: p.lat < 0 ? 0 : 180  // PVWatts: 180=sur, 0=norte. Ecuador → norte = 0
+        };
       }
-      // Nota: omitimos dataset para que NREL elija el mejor automáticamente
-      //       y usamos radius=0 (sin límite) para que siempre encuentre data
+      return { tilt: p.angle, azimuth_pvgis: p.aspect, azimuth_pvwatts: (p.aspect + 180) % 360 };
+    }
+
+    // --- NREL PVWatts ---
+    function llamarPVWatts(p) {
+      const key = getNRELKey();
+      if (!key || key.length < 20) {
+        return Promise.resolve({ fuente: 'NREL PVWatts', fuenteId: 'nrel', ok: false, error: 'API key no configurada' });
+      }
+      const opt = calcOptimalAngles(p);
+      const trackMap = { '0': 0, '3': 2, '2': 4 };
       const params = new URLSearchParams({
-        api_key: getNRELKey(),
-        lat: p.lat.toFixed(6), lon: p.lon.toFixed(6),
-        system_capacity: p.power, module_type: moduleType, losses: p.loss,
-        array_type: arrayType, tilt: tilt, azimuth: azimuth,
+        api_key: key, lat: p.lat.toFixed(6), lon: p.lon.toFixed(6),
+        system_capacity: p.power, module_type: 0, losses: p.loss,
+        array_type: trackMap[p.tracking] || 0, tilt: opt.tilt, azimuth: opt.azimuth_pvwatts,
         timeframe: 'monthly', radius: 0
       });
-      const url = 'https://developer.nrel.gov/api/pvwatts/v8.json?' + params.toString();
-      console.log('[NREL PVWatts] URL:', url);
-      return url;
-    }
-    function llamarPVWatts(p) {
-      const url = pvwattsURL(p);
-      return fetch(url).then(function(r){
-        console.log('[NREL PVWatts] HTTP status:', r.status, r.statusText);
-        return r.json().then(function(data){
-          console.log('[NREL PVWatts] Response:', data);
-          if (!r.ok) throw new Error('HTTP ' + r.status + ': ' + JSON.stringify(data.errors || data).substring(0,300));
-          if (data.errors && data.errors.length > 0) throw new Error(data.errors.join('; '));
-          if (!data.outputs || data.outputs.ac_annual === undefined) {
-            throw new Error('Respuesta sin datos PV (ubicación sin cobertura): ' + JSON.stringify(data).substring(0, 200));
-          }
-          return data;
-        }).catch(function(parseErr){
-          // r.json() falló — la respuesta no es JSON
-          if (parseErr.message.indexOf('JSON') !== -1) {
-            return r.text().then(function(txt){ throw new Error('Respuesta no-JSON de NREL: ' + txt.substring(0,200)); });
-          }
-          throw parseErr;
-        });
-      }).then(function(data) {
-        const o = data.outputs;
+      const url = 'https://developer.nrel.gov/api/pvwatts/v8.json?' + params;
+      return fetch(url).then(r => r.json().then(d => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        if (d.errors && d.errors.length) throw new Error(d.errors[0]);
+        return d;
+      })).then(d => {
+        const o = d.outputs;
         const E_y = o.ac_annual;
-        const fp = (o.capacity_factor || (E_y / (p.power * 8760) * 100)) / 100;
-        return { fuente: 'NREL PVWatts', fuenteId: 'nrel', ok: true, fp: fp, E_y: E_y,
-          E_y_y: E_y / p.power, H_y: (o.solrad_annual || 0) * 365, monthly: o.ac_monthly || [] };
-      }).catch(function(err) {
-        console.error('[NREL PVWatts] ERROR:', err);
-        let detalle = err.message;
-        // Failed to fetch indica problema antes de llegar al server
-        if (err.message === 'Failed to fetch' || err.message.indexOf('NetworkError') !== -1) {
-          detalle = 'Failed to fetch — el navegador bloqueó la petición antes de que llegara a NREL. Posibles causas: (1) caché del navegador con código viejo (haz Ctrl+F5); (2) red corporativa bloquea developer.nrel.gov; (3) API key inválida bloqueada por dominio. Revisa la consola (F12 → Console) para más detalle.';
-        }
-        return { fuente: 'NREL PVWatts', fuenteId: 'nrel', ok: false, error: detalle };
-      });
+        return { fuente: 'NREL PVWatts', fuenteId: 'nrel', ok: true, E_y,
+          fp: (o.capacity_factor || (E_y / (p.power * 8760) * 100)) / 100,
+          monthly: o.ac_monthly };
+      }).catch(err => ({ fuente: 'NREL PVWatts', fuenteId: 'nrel', ok: false,
+        error: err.message === 'Failed to fetch' ? 'Sin respuesta (posible restricción de dominio en tu API key)' : err.message }));
     }
 
-    // ============ FUENTE 2: PVGIS ============
-    function pvgisURL(p) {
+    // --- PVGIS ---
+    function llamarPVGIS(p) {
+      const opt = calcOptimalAngles(p);
       const trackMap = { '0': 0, '3': 3, '2': 2 };
-      const tracking = trackMap[p.tracking] !== undefined ? trackMap[p.tracking] : 0;
-      const techMap = { 'crystSi': 'crystSi', 'premium': 'crystSi', 'thin': 'CIS' };
-      const tech = techMap[p.tech] || 'crystSi';
+      const tracking = trackMap[p.tracking] || 0;
       const q = new URLSearchParams({
         lat: p.lat.toFixed(6), lon: p.lon.toFixed(6),
-        peakpower: p.power, loss: p.loss, pvtechchoice: tech,
+        peakpower: p.power, loss: p.loss, pvtechchoice: 'crystSi',
         mountingplace: 'free', trackingtype: tracking, outputformat: 'json',
         browser: 0, raddatabase: 'PVGIS-SARAH3'
       });
       if (tracking === 0) {
         if (p.optimal === '1') q.append('optimalangles', 1);
         else { q.append('angle', p.angle); q.append('aspect', p.aspect); }
-      } else if (tracking === 3) q.append('angle', p.angle);
-      return 'https://re.jrc.ec.europa.eu/api/v5_3/PVcalc?' + q.toString();
-    }
-    function llamarPVGIS(p) {
-      return fetch(pvgisURL(p)).then(function(r){
-        if (!r.ok) return r.text().then(function(t){ throw new Error('HTTP ' + r.status); });
+      } else if (tracking === 3) q.append('angle', opt.tilt);
+      return fetch('https://re.jrc.ec.europa.eu/api/v5_3/PVcalc?' + q).then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
-      }).then(function(data) {
-        const trackKeys = { '0': 'fixed', '3': 'horizontal_axis', '2': 'two_axis' };
-        const key = trackKeys[p.tracking] || 'fixed';
-        const totals = data.outputs.totals[key] || data.outputs.totals.fixed;
-        const monthly = (data.outputs.monthly[key] || data.outputs.monthly.fixed).map(function(m){ return m.E_m; });
+      }).then(d => {
+        const keys = { '0': 'fixed', '3': 'horizontal_axis', '2': 'two_axis' };
+        const key = keys[p.tracking] || 'fixed';
+        const totals = d.outputs.totals[key] || d.outputs.totals.fixed;
+        const monthly = (d.outputs.monthly[key] || d.outputs.monthly.fixed).map(m => m.E_m);
         const E_y = totals.E_y;
-        return { fuente: 'PVGIS-SARAH3', fuenteId: 'pvgis', ok: true,
-          fp: E_y / (p.power * 8760), E_y: E_y,
-          E_y_y: totals.E_y_y || (E_y / p.power),
-          H_y: totals.H_y || totals['H(i)_y'] || 0, monthly: monthly };
-      }).catch(function(err) { return { fuente: 'PVGIS-SARAH3', fuenteId: 'pvgis', ok: false, error: err.message }; });
+        return { fuente: 'PVGIS-SARAH3', fuenteId: 'pvgis', ok: true, E_y,
+          fp: E_y / (p.power * 8760), monthly };
+      }).catch(err => ({ fuente: 'PVGIS-SARAH3', fuenteId: 'pvgis', ok: false,
+        error: err.message === 'Failed to fetch' ? 'Servidor PVGIS no responde (problema CORS conocido)' : err.message }));
     }
 
-    // ============ FUENTE 3: NASA POWER ============
-    function llamarNASAPower(p) {
-      const params = new URLSearchParams({
+    // --- NASA POWER ---
+    function llamarNASA(p) {
+      const q = new URLSearchParams({
         parameters: 'ALLSKY_SFC_SW_DWN,T2M', community: 'RE',
         latitude: p.lat.toFixed(4), longitude: p.lon.toFixed(4), format: 'JSON'
       });
-      return fetch('https://power.larc.nasa.gov/api/temporal/climatology/point?' + params.toString()).then(function(r){
-        if (!r.ok) throw new Error('NASA HTTP ' + r.status);
+      return fetch('https://power.larc.nasa.gov/api/temporal/climatology/point?' + q).then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
-      }).then(function(data) {
-        const ghi = data.properties.parameter.ALLSKY_SFC_SW_DWN;
-        const tamb = data.properties.parameter.T2M;
-        const meses = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-        const diasMes = [31,28,31,30,31,30,31,31,30,31,30,31];
-        let tilt = p.angle;
-        if (p.optimal === '1') tilt = Math.min(Math.max(Math.abs(p.lat), 5), 30);
-        const factorTilt = 1 + (tilt / 100) * (1 - Math.sin(Math.abs(p.lat) * Math.PI / 180));
-        const trackFactor = { '0': 1.00, '3': 1.25, '2': 1.35 };
-        const fT = trackFactor[p.tracking] || 1.00;
-        const lossFrac = 1 - (p.loss / 100);
-        let monthly = [], E_y = 0, H_y_poa = 0;
-        for (let i = 0; i < 12; i++) {
-          const ghi_m = ghi[meses[i]] * diasMes[i];
-          const poa_m = ghi_m * factorTilt * fT;
-          const Tc_m = tamb[meses[i]] + 25;
-          const tempFactor = 1 - 0.004 * Math.max(Tc_m - 25, 0);
-          const E_m = poa_m * p.power * lossFrac * tempFactor;
-          monthly.push(E_m); E_y += E_m; H_y_poa += poa_m;
-        }
-        return { fuente: 'NASA POWER + Liu-Jordan', fuenteId: 'nasa', ok: true,
-          fp: E_y / (p.power * 8760), E_y: E_y, E_y_y: E_y / p.power,
-          H_y: H_y_poa, monthly: monthly };
-      }).catch(function(err) { return { fuente: 'NASA POWER + Liu-Jordan', fuenteId: 'nasa', ok: false, error: err.message }; });
+      }).then(d => calcularConIrradiancia(p, d.properties.parameter.ALLSKY_SFC_SW_DWN, d.properties.parameter.T2M, 'NASA POWER + Liu-Jordan', 'nasa'))
+        .catch(err => ({ fuente: 'NASA POWER', fuenteId: 'nasa', ok: false, error: err.message }));
     }
 
-    // ============ TRIANGULACIÓN ============
-    function calcularTriangulacion() {
-      if (!ubicacionActual) { alert('Selecciona una ubicación (polígono o punto).'); return; }
+    // --- Open-Meteo (NUEVA FUENTE, ERA5 Copernicus) ---
+    function llamarOpenMeteo(p) {
+      // Usar histórico últimos 10 años, calcular promedio mensual
+      const endYear = new Date().getFullYear() - 1;
+      const startYear = endYear - 9;
+      const q = new URLSearchParams({
+        latitude: p.lat.toFixed(4), longitude: p.lon.toFixed(4),
+        start_date: startYear + '-01-01', end_date: endYear + '-12-31',
+        daily: 'shortwave_radiation_sum,temperature_2m_mean',
+        timezone: 'auto'
+      });
+      return fetch('https://archive-api.open-meteo.com/v1/archive?' + q).then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      }).then(d => {
+        // Agregar por mes (promedio de los 10 años)
+        const meses = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+        const ghi_por_mes = {}, temp_por_mes = {}, count_por_mes = {};
+        d.daily.time.forEach((fecha, i) => {
+          const m = new Date(fecha).getMonth();
+          const key = meses[m];
+          ghi_por_mes[key] = (ghi_por_mes[key] || 0) + (d.daily.shortwave_radiation_sum[i] || 0);
+          temp_por_mes[key] = (temp_por_mes[key] || 0) + (d.daily.temperature_2m_mean[i] || 0);
+          count_por_mes[key] = (count_por_mes[key] || 0) + 1;
+        });
+        const ghi_avg = {}, temp_avg = {};
+        // Open-Meteo devuelve MJ/m², convertir a kWh/m² (÷3.6)
+        // Y promediar por día (dividir por count) → kWh/m²/día
+        Object.keys(ghi_por_mes).forEach(k => {
+          ghi_avg[k] = (ghi_por_mes[k] / count_por_mes[k]) / 3.6;
+          temp_avg[k] = temp_por_mes[k] / count_por_mes[k];
+        });
+        return calcularConIrradiancia(p, ghi_avg, temp_avg, 'Open-Meteo (ERA5 10a)', 'openm');
+      }).catch(err => ({ fuente: 'Open-Meteo', fuenteId: 'openm', ok: false, error: err.message }));
+    }
+
+    // Cálculo compartido para fuentes que solo dan irradiancia
+    function calcularConIrradiancia(p, ghi_kwh_m2_dia, tamb_c, nombreFuente, idFuente) {
+      const meses = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+      const diasMes = [31,28,31,30,31,30,31,31,30,31,30,31];
+      const opt = calcOptimalAngles(p);
+      const tilt = opt.tilt;
+      const factorTilt = 1 + (tilt / 100) * (1 - Math.sin(Math.abs(p.lat) * Math.PI / 180));
+      const trackFactor = { '0': 1.00, '3': 1.25, '2': 1.35 };
+      const fT = trackFactor[p.tracking] || 1.00;
+      const lossFrac = 1 - (p.loss / 100);
+      let monthly = [], E_y = 0;
+      for (let i = 0; i < 12; i++) {
+        const ghi_m = ghi_kwh_m2_dia[meses[i]] * diasMes[i];
+        const poa_m = ghi_m * factorTilt * fT;
+        const Tc_m = (tamb_c[meses[i]] || 20) + 25;
+        const tempFactor = 1 - 0.004 * Math.max(Tc_m - 25, 0);
+        const E_m = poa_m * p.power * lossFrac * tempFactor;
+        monthly.push(E_m);
+        E_y += E_m;
+      }
+      return { fuente: nombreFuente, fuenteId: idFuente, ok: true, E_y,
+        fp: E_y / (p.power * 8760), monthly };
+    }
+
+    // ============ CÁLCULO PRINCIPAL ============
+    function calcular() {
+      if (!ubicacionActual) { alert('Marca ubicación primero.'); return; }
       const params = {
         lat: ubicacionActual.lat, lon: ubicacionActual.lon,
         power: parseFloat(document.getElementById('pv-power').value),
-        tracking: document.getElementById('pv-tracking').value,
+        tracking: tipoMontaje,
         optimal: document.getElementById('pv-optimal').value,
         angle: parseFloat(document.getElementById('pv-angle').value),
         aspect: parseFloat(document.getElementById('pv-aspect').value),
-        loss: parseFloat(document.getElementById('pv-loss').value),
-        tech: document.getElementById('pv-tech').value
+        loss: parseFloat(document.getElementById('pv-loss').value)
       };
       const btn = document.getElementById('btn-calc');
       btn.disabled = true;
-      btn.innerHTML = '<span class="loading-spin"></span> Consultando 3 fuentes...';
-      document.getElementById('pv-results').innerHTML =
-        '<div class="text-muted text-small" style="line-height:2;">' +
-        '<div><span class="loading-spin"></span> <span class="source-pill src-nrel">NREL</span> Consultando NREL PVWatts...</div>' +
-        '<div><span class="loading-spin"></span> <span class="source-pill src-pvgis">PVGIS</span> Consultando PVGIS-SARAH3...</div>' +
-        '<div><span class="loading-spin"></span> <span class="source-pill src-nasa">NASA</span> Consultando NASA POWER...</div></div>';
-      Promise.all([llamarPVWatts(params), llamarPVGIS(params), llamarNASAPower(params)])
-        .then(function(fuentes) { mostrarResultados(fuentes, params); })
-        .finally(function(){
+      btn.innerHTML = '<span class="loading-spin"></span> Consultando fuentes...';
+      document.getElementById('resultados-area').innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted); font-size:13px;"><span class="loading-spin"></span> Consultando 4 fuentes en paralelo...</div>';
+
+      Promise.all([llamarPVWatts(params), llamarPVGIS(params), llamarNASA(params), llamarOpenMeteo(params)])
+        .then(fuentes => mostrarResultados(fuentes, params))
+        .finally(() => {
           btn.disabled = false;
-          btn.textContent = 'Recalcular triangulación';
+          btn.innerHTML = '📊 Recalcular';
         });
     }
 
     function mostrarResultados(fuentes, params) {
-      const validos = fuentes.filter(function(f){ return f.ok; });
-      const fallidos = fuentes.filter(function(f){ return !f.ok; });
-      let promedio = null, monthlyProm = null;
-      if (validos.length > 0) {
-        const sumFp = validos.reduce(function(a,f){ return a+f.fp; }, 0);
-        const sumEy = validos.reduce(function(a,f){ return a+f.E_y; }, 0);
-        const sumYield = validos.reduce(function(a,f){ return a+f.E_y_y; }, 0);
-        const sumHy = validos.reduce(function(a,f){ return a+(f.H_y||0); }, 0);
-        promedio = { fp: sumFp/validos.length, E_y: sumEy/validos.length,
-          E_y_y: sumYield/validos.length, H_y: sumHy/validos.length, n: validos.length };
-        const meanFp = promedio.fp;
-        const varFp = validos.reduce(function(a,f){ return a + Math.pow(f.fp - meanFp, 2); }, 0) / validos.length;
-        promedio.std = Math.sqrt(varFp);
-        promedio.cv = meanFp > 0 ? (promedio.std / meanFp * 100) : 0;
-        monthlyProm = [];
-        for (let i = 0; i < 12; i++) {
-          let sum = 0, n = 0;
-          validos.forEach(function(f){ if (f.monthly && f.monthly[i] !== undefined) { sum += f.monthly[i]; n++; } });
-          monthlyProm.push(n > 0 ? sum/n : 0);
-        }
-      }
-      const fpFijo = validos.length ? Math.max.apply(null, validos.map(function(f){ return f.fp; })) : 0;
-      let html = '<table class="compare-table"><thead><tr>' +
-        '<th>Fuente</th><th>Factor planta</th><th>Producción/año</th><th>Yield</th><th>Irrad. plano</th>' +
-        '</tr></thead><tbody>';
-      fuentes.forEach(function(f) {
-        const pillClass = f.fuenteId === 'nrel' ? 'src-nrel' : (f.fuenteId === 'pvgis' ? 'src-pvgis' : 'src-nasa');
-        if (!f.ok) {
-          html += '<tr class="error"><td><span class="source-pill ' + pillClass + '">' + f.fuenteId.toUpperCase() + '</span> ' + f.fuente + '</td><td colspan="4" style="font-size:11px;">Error: ' + f.error + '</td></tr>';
-        } else {
-          const isBest = Math.abs(f.fp - fpFijo) < 1e-9;
-          html += '<tr' + (isBest ? ' class="best"' : '') + '>' +
-            '<td><span class="source-pill ' + pillClass + '">' + f.fuenteId.toUpperCase() + '</span> ' + f.fuente + (isBest ? ' ★' : '') + '</td>' +
-            '<td class="num">' + (f.fp * 100).toFixed(2) + ' %</td>' +
-            '<td class="num">' + formatNum(f.E_y, 0) + ' kWh</td>' +
-            '<td class="num">' + formatNum(f.E_y_y, 0) + '</td>' +
-            '<td class="num">' + formatNum(f.H_y, 0) + ' kWh/m²</td></tr>';
-        }
-      });
-      if (promedio) {
-        html += '<tr class="avg"><td><strong>PROMEDIO (' + promedio.n + ' fuentes)</strong></td>' +
-          '<td class="num">' + (promedio.fp * 100).toFixed(2) + ' %</td>' +
-          '<td class="num">' + formatNum(promedio.E_y, 0) + ' kWh</td>' +
-          '<td class="num">' + formatNum(promedio.E_y_y, 0) + '</td>' +
-          '<td class="num">' + formatNum(promedio.H_y, 0) + ' kWh/m²</td></tr>';
-      }
-      html += '</tbody></table>';
-      let alerta = '';
-      if (promedio && promedio.n >= 2) {
-        const cv = promedio.cv;
-        if (cv < 5) alerta = '<div class="alert alert-success" style="margin-top:12px;"><strong>✓ Alta coherencia</strong> (CV = ' + cv.toFixed(1) + ' %).</div>';
-        else if (cv < 10) alerta = '<div class="alert alert-info" style="margin-top:12px;"><strong>Coherencia moderada</strong> (CV = ' + cv.toFixed(1) + ' %).</div>';
-        else alerta = '<div class="alert alert-error" style="margin-top:12px;"><strong>⚠ Baja coherencia</strong> (CV = ' + cv.toFixed(1) + ' %).</div>';
-      }
-      if (fallidos.length > 0 && validos.length > 0) {
-        alerta += '<div class="alert alert-info" style="margin-top:8px; font-size:12px;">' + fallidos.length + ' fuente(s) no respondieron. Promedio con las ' + validos.length + ' restantes.</div>';
-      }
+      const validos = fuentes.filter(f => f.ok);
       if (validos.length === 0) {
-        alerta = '<div class="alert alert-error" style="margin-top:12px;"><strong>Las 3 fuentes fallaron.</strong></div>';
-      }
-      document.getElementById('pv-results').innerHTML = html + alerta;
-      resultadosTri = { fuentes: fuentes, promedio: promedio, monthly: monthlyProm, params: params };
-      if (validos.length > 0 && monthlyProm) {
-        renderMonthlyChart(monthlyProm);
-        document.getElementById('pv-extra').style.display = 'block';
-      }
-      actualizarEconomico();
-    }
-
-    function renderMonthlyChart(valores) {
-      const div = document.getElementById('pv-monthly');
-      const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-      const maxVal = Math.max.apply(null, valores);
-      const total = valores.reduce(function(a,b){ return a+b; }, 0);
-      const W = 700, H = 220, padL = 50, padR = 20, padT = 30, padB = 50;
-      const innerW = W - padL - padR, innerH = H - padT - padB;
-      const barW = innerW / 12 * 0.7, gap = innerW / 12 * 0.3;
-      let bars = '';
-      for (let i = 0; i < 12; i++) {
-        const v = valores[i], h = (v / maxVal) * innerH;
-        const x = padL + i * (innerW / 12) + gap/2, y = padT + innerH - h;
-        bars += '<rect class="bar" x="' + x + '" y="' + y + '" width="' + barW + '" height="' + h + '"><title>' + meses[i] + ': ' + formatNum(v, 0) + ' kWh</title></rect>';
-        bars += '<text class="value" x="' + (x + barW/2) + '" y="' + (y - 4) + '" text-anchor="middle">' + formatNum(v, 0) + '</text>';
-        bars += '<text x="' + (x + barW/2) + '" y="' + (padT + innerH + 14) + '" text-anchor="middle">' + meses[i] + '</text>';
-      }
-      const yticks = [0, 0.25, 0.5, 0.75, 1].map(function(f){
-        const y = padT + innerH - f * innerH;
-        return '<line class="axis" x1="' + padL + '" y1="' + y + '" x2="' + (W - padR) + '" y2="' + y + '" opacity="0.4"/><text x="' + (padL - 6) + '" y="' + (y + 3) + '" text-anchor="end" style="font-size:9px;">' + formatNum(f * maxVal, 0) + '</text>';
-      }).join('');
-      const minMes = valores.indexOf(Math.min.apply(null, valores));
-      const maxMes = valores.indexOf(maxVal);
-      div.innerHTML = '<svg class="pv-bar-chart" viewBox="0 0 ' + W + ' ' + H + '">' + yticks + bars +
-        '<text x="' + padL + '" y="' + (padT - 12) + '" style="font-size:11px; fill:#7a857f;">kWh/mes</text>' +
-        '<text x="' + (W - padR) + '" y="' + (padT - 12) + '" text-anchor="end" style="font-size:11px; fill:#a8e6a8;">Total: ' + formatNum(total, 0) + ' kWh/año</text>' +
-        '</svg><p class="text-muted text-small mt-2">Pico: <strong style="color:#a8e6a8;">' + meses[maxMes] + '</strong> (' + formatNum(valores[maxMes], 0) + ') · Valle: <strong>' + meses[minMes] + '</strong> (' + formatNum(valores[minMes], 0) + ').</p>';
-    }
-
-    // ============ ECONÓMICO ============
-    function actualizarEconomico() {
-      const div = document.getElementById('ec-results');
-      if (!resultadosTri || !resultadosTri.promedio) {
-        div.innerHTML = '<p class="text-muted text-small">Calcula primero el factor de planta.</p>';
+        document.getElementById('resultados-area').innerHTML =
+          '<div class="alert alert-error" style="margin-top:0;"><strong>Ninguna fuente respondió.</strong> Revisa tu conexión a internet.</div>';
         return;
       }
-      const power_kWp = resultadosTri.params.power;
-      const E_y0 = resultadosTri.promedio.E_y;
-      const capex_per_Wp = parseFloat(document.getElementById('ec-capex').value);
-      const tarifa = parseFloat(document.getElementById('ec-tarifa').value);
-      const om_pct = parseFloat(document.getElementById('ec-om').value) / 100;
-      const vida = parseInt(document.getElementById('ec-vida').value, 10);
-      const degr = parseFloat(document.getElementById('ec-degr').value) / 100;
-      const tasa = parseFloat(document.getElementById('ec-tasa').value) / 100;
-      const capex_total = power_kWp * 1000 * capex_per_Wp;
-      const om_anual = capex_total * om_pct;
-      const ingreso_anual_y1 = E_y0 * tarifa;
-      const flujo_neto_y1 = ingreso_anual_y1 - om_anual;
-      let energia_total = 0, van = -capex_total, payback = null, acumulado = 0, opex_disc = 0, e_disc = 0;
-      for (let n = 1; n <= vida; n++) {
-        const E_n = E_y0 * Math.pow(1 - degr, n - 1);
-        const flujo = E_n * tarifa - om_anual;
-        energia_total += E_n;
-        van += flujo / Math.pow(1 + tasa, n);
-        opex_disc += om_anual / Math.pow(1 + tasa, n);
-        e_disc += E_n / Math.pow(1 + tasa, n);
-        acumulado += flujo;
-        if (payback === null && acumulado >= capex_total) payback = (n - 1) + (capex_total - (acumulado - flujo)) / flujo;
-      }
-      const lcoe = (capex_total + opex_disc) / e_disc;
-      div.innerHTML =
-        '<div class="alert alert-info" style="font-size:11px; margin-bottom:8px;">Promedio de ' + resultadosTri.promedio.n + ' fuentes: ' + formatNum(E_y0, 0) + ' kWh/año.</div>' +
-        '<div class="econ-row"><span class="lab">CAPEX total</span><span class="val">$ ' + formatNum(capex_total, 0) + '</span></div>' +
-        '<div class="econ-row"><span class="lab">Ingresos año 1</span><span class="val">$ ' + formatNum(ingreso_anual_y1, 0) + '/año</span></div>' +
-        '<div class="econ-row"><span class="lab">O&M anual</span><span class="val neutral">$ ' + formatNum(om_anual, 0) + '/año</span></div>' +
-        '<div class="econ-row"><span class="lab">Flujo neto año 1</span><span class="val">$ ' + formatNum(flujo_neto_y1, 0) + '/año</span></div>' +
-        '<div class="econ-row"><span class="lab">Energía total ' + vida + ' años</span><span class="val neutral">' + formatNum(energia_total/1000, 0) + ' MWh</span></div>' +
-        '<div class="econ-row"><span class="lab">Payback simple</span><span class="val">' + (payback ? payback.toFixed(1) + ' años' : '> ' + vida + ' años') + '</span></div>' +
-        '<div class="econ-row"><span class="lab">VAN @' + (tasa*100).toFixed(1) + '%</span><span class="val">$ ' + formatNum(van, 0) + '</span></div>' +
-        '<div class="econ-row"><span class="lab">LCOE estimado</span><span class="val">' + lcoe.toFixed(4) + ' $/kWh</span></div>';
+      const sumFp = validos.reduce((a,f) => a+f.fp, 0);
+      const sumEy = validos.reduce((a,f) => a+f.E_y, 0);
+      const fpProm = sumFp / validos.length;
+      const eyProm = sumEy / validos.length;
+      // Coherencia
+      const varFp = validos.reduce((a,f) => a + Math.pow(f.fp - fpProm, 2), 0) / validos.length;
+      const cv = fpProm > 0 ? Math.sqrt(varFp) / fpProm * 100 : 0;
+      let confClass, confLight, confText;
+      if (cv < 5)      { confClass='confidence-high'; confLight='light-green'; confText='ALTA CONFIABILIDAD · Fuentes coinciden (CV ' + cv.toFixed(1) + '%)'; }
+      else if (cv < 12) { confClass='confidence-med';  confLight='light-amber'; confText='CONFIABILIDAD MEDIA · Diferencias normales (CV ' + cv.toFixed(1) + '%)'; }
+      else             { confClass='confidence-low';  confLight='light-red';   confText='BAJA CONFIABILIDAD · Fuentes discrepan mucho (CV ' + cv.toFixed(1) + '%). Considera microclima local'; }
+
+      let html =
+        '<div class="result-hero">' +
+          '<div class="fp-label">Factor de planta promedio</div>' +
+          '<div class="fp-value">' + (fpProm * 100).toFixed(1) + '%</div>' +
+          '<div class="fp-sub">Promedio de ' + validos.length + ' de ' + fuentes.length + ' fuentes internacionales</div>' +
+          '<div class="production">' +
+            '<div class="production-value">' + formatNum(eyProm, 0) + ' kWh</div>' +
+            '<div class="production-label">Producción anual estimada · ' + formatNum(eyProm/1000, 0) + ' MWh/año</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="confidence ' + confClass + '"><span class="light ' + confLight + '"></span>' + confText + '</div>' +
+        '<button class="sources-toggle" onclick="document.getElementById(\'sources-detail\').classList.toggle(\'visible\')">Ver detalle por fuente ▼</button>' +
+        '<div class="sources-detail" id="sources-detail">';
+
+      fuentes.forEach(f => {
+        const pillClass = 'src-pill-' + f.fuenteId;
+        if (f.ok) {
+          html += '<div class="source-row"><span class="src-name"><span class="src-pill ' + pillClass + '">' + f.fuenteId.toUpperCase() + '</span> ' + f.fuente + '</span>' +
+                  '<span class="src-fp">' + (f.fp * 100).toFixed(2) + ' %</span></div>';
+        } else {
+          html += '<div class="source-row src-fail"><span class="src-name"><span class="src-pill ' + pillClass + '">' + f.fuenteId.toUpperCase() + '</span> ' + f.fuente + '</span>' +
+                  '<span class="src-fp">' + f.error + '</span></div>';
+        }
+      });
+      html += '</div>';
+
+      document.getElementById('resultados-area').innerHTML = html;
     }
 
-    // ============ LUGARES GUARDADOS POR USUARIO ============
+    // ============ LUGARES ============
     function getLugaresAll() { return JSON.parse(localStorage.getItem(LUGARES_KEY) || '{}'); }
-    function setLugaresAll(o) { localStorage.setItem(LUGARES_KEY, JSON.stringify(o)); }
-    function getMisLugares() {
-      const all = getLugaresAll();
-      return all[getCurrentEmail()] || [];
-    }
-    function setMisLugares(arr) {
-      const all = getLugaresAll();
-      all[getCurrentEmail()] = arr;
-      setLugaresAll(all);
-    }
+    function getMisLugares() { return getLugaresAll()[getCurrentEmail()] || []; }
+    function setMisLugares(arr) { const all = getLugaresAll(); all[getCurrentEmail()] = arr; localStorage.setItem(LUGARES_KEY, JSON.stringify(all)); }
 
     function refrescarLugares() {
       const mis = getMisLugares();
       const sel = document.getElementById('lugar-load');
-      sel.innerHTML = '<option value="">— Seleccionar lugar guardado —</option>' +
-        mis.map(function(l){
-          const icon = l.tipo === 'punto' ? '📍' : '🔷';
-          return '<option value="' + l.id + '">' + icon + ' ' + l.nombre + '</option>';
-        }).join('');
-      document.getElementById('lugares-info').textContent = mis.length + ' lugar(es) guardados';
-      // Actualiza marcadores en mapa
+      sel.innerHTML = '<option value="">— Cargar lugar guardado —</option>' +
+        mis.map(l => '<option value="' + l.id + '">' + (l.tipo === 'punto' ? '📍' : '🔷') + ' ' + l.nombre + '</option>').join('');
       lugaresLayer.clearLayers();
-      mis.forEach(function(l) {
-        const icon = L.divIcon({
-          className: 'lugar-marker-wrap',
-          html: '<div class="lugar-marker"></div>',
-          iconSize: [8, 8], iconAnchor: [4, 4]
-        });
-        L.marker([l.lat, l.lon], { icon: icon })
-          .bindPopup('<strong>' + l.nombre + '</strong><br>' + (l.tipo === 'punto' ? '📍 Punto' : '🔷 Polígono') + '<br>' + l.lat.toFixed(5) + '°, ' + l.lon.toFixed(5) + '°<br><a href="#" onclick="cargarLugar(\'' + l.id + '\'); return false;">Cargar →</a>')
-          .addTo(lugaresLayer);
+      mis.forEach(l => {
+        const icon = L.divIcon({ className: 'lugar-marker-wrap', html: '<div class="lugar-marker"></div>', iconSize: [8, 8], iconAnchor: [4, 4] });
+        L.marker([l.lat, l.lon], { icon }).bindPopup('<strong>' + l.nombre + '</strong>').addTo(lugaresLayer);
       });
     }
-
     function guardarLugar() {
-      if (!ubicacionActual) { alert('Primero dibuja un polígono o marca un punto.'); return; }
-      const nombre = prompt('Nombre del lugar:\n(ej: "Terreno Salinas Norte", "Cliente Pérez", "Terreno Loja 1")');
+      if (!ubicacionActual) { alert('Primero marca un punto o polígono.'); return; }
+      const nombre = prompt('Nombre del lugar:');
       if (!nombre) return;
       const mis = getMisLugares();
-      const nuevo = {
-        id: String(Date.now()),
-        nombre: nombre.trim(),
-        tipo: ubicacionActual.tipo,
-        lat: ubicacionActual.lat,
-        lon: ubicacionActual.lon,
-        areaM2: ubicacionActual.areaM2 || null,
-        geojson: ubicacionActual.geojson || null,
-        fecha: new Date().toISOString()
-      };
-      mis.push(nuevo);
+      mis.push({ id: String(Date.now()), nombre: nombre.trim(), tipo: ubicacionActual.tipo,
+        lat: ubicacionActual.lat, lon: ubicacionActual.lon,
+        areaM2: ubicacionActual.areaM2 || null, geojson: ubicacionActual.geojson || null,
+        fecha: new Date().toISOString() });
       setMisLugares(mis);
       refrescarLugares();
-      alert('Lugar "' + nombre + '" guardado.');
     }
-
     function cargarLugar(id) {
       if (!id) return;
-      const mis = getMisLugares();
-      const l = mis.find(function(x){ return x.id === id; });
+      const l = getMisLugares().find(x => x.id === id);
       if (!l) return;
       drawnItems.clearLayers();
       if (l.tipo === 'punto') {
         colocarPunto(l.lat, l.lon);
         map.setView([l.lat, l.lon], 16);
       } else {
-        const layer = L.geoJSON(l.geojson, { style: { color: '#7dc97d', weight: 3, opacity: 0.9, fillColor: '#7dc97d', fillOpacity: 0.18 } });
-        const polyLayer = layer.getLayers()[0];
-        drawnItems.addLayer(polyLayer);
-        analizarPoligono(l.geojson, polyLayer);
-        map.fitBounds(polyLayer.getBounds(), { padding: [40, 40] });
+        const layer = L.geoJSON(l.geojson, { style: { color: '#7dc97d', weight: 3, fillColor: '#7dc97d', fillOpacity: 0.18 } });
+        const pl = layer.getLayers()[0];
+        drawnItems.addLayer(pl);
+        pl.bindTooltip('<strong>' + (l.areaM2/10000).toFixed(2) + ' ha</strong>', { permanent: true, direction: 'center', className: 'fp-area-tooltip' }).openTooltip();
+        ubicacionActual = { tipo: 'poligono', lat: l.lat, lon: l.lon, areaM2: l.areaM2, geojson: l.geojson };
+        actualizarUbicacionStatus();
+        map.fitBounds(pl.getBounds(), { padding: [40, 40] });
       }
-      // Set value en select
-      document.getElementById('lugar-load').value = id;
     }
-
     function eliminarLugar() {
-      const sel = document.getElementById('lugar-load');
-      const id = sel.value;
-      if (!id) { alert('Selecciona un lugar del menú.'); return; }
-      const mis = getMisLugares();
-      const l = mis.find(function(x){ return x.id === id; });
-      if (!confirm('¿Eliminar el lugar "' + l.nombre + '"?')) return;
-      const filtrados = mis.filter(function(x){ return x.id !== id; });
-      setMisLugares(filtrados);
+      const id = document.getElementById('lugar-load').value;
+      if (!id) { alert('Selecciona un lugar.'); return; }
+      const l = getMisLugares().find(x => x.id === id);
+      if (!confirm('¿Eliminar "' + l.nombre + '"?')) return;
+      setMisLugares(getMisLugares().filter(x => x.id !== id));
       refrescarLugares();
-      sel.value = '';
     }
-
-    // ============ PROYECTOS ============
-    function getProyectos() { return JSON.parse(localStorage.getItem(PROJ_KEY) || '{}'); }
-    function setProyectos(p) { localStorage.setItem(PROJ_KEY, JSON.stringify(p)); }
-    function refrescarSelectorProyectos() {
-      const sel = document.getElementById('proj-load');
-      const proyectos = getProyectos();
-      const nombres = Object.keys(proyectos).sort();
-      sel.innerHTML = '<option value="">— Cargar proyecto guardado —</option>' +
-        nombres.map(function(n){ return '<option value="' + n.replace(/"/g,'&quot;') + '">' + n + '</option>'; }).join('');
-    }
-    function guardarProyecto() {
-      const nombre = document.getElementById('proj-name').value.trim();
-      if (!nombre) { alert('Escribe un nombre para el proyecto.'); return; }
-      if (!ubicacionActual) { alert('Selecciona una ubicación.'); return; }
-      const proyectos = getProyectos();
-      proyectos[nombre] = {
-        nombre: nombre, fecha: new Date().toISOString(),
-        ubicacion: ubicacionActual,
-        params: {
-          power: document.getElementById('pv-power').value,
-          tracking: document.getElementById('pv-tracking').value,
-          optimal: document.getElementById('pv-optimal').value,
-          angle: document.getElementById('pv-angle').value,
-          aspect: document.getElementById('pv-aspect').value,
-          loss: document.getElementById('pv-loss').value,
-          tech: document.getElementById('pv-tech').value
-        },
-        economico: {
-          capex: document.getElementById('ec-capex').value, tarifa: document.getElementById('ec-tarifa').value,
-          om: document.getElementById('ec-om').value, vida: document.getElementById('ec-vida').value,
-          degr: document.getElementById('ec-degr').value, tasa: document.getElementById('ec-tasa').value
-        },
-        resultados: resultadosTri
-      };
-      setProyectos(proyectos);
-      refrescarSelectorProyectos();
-      alert('Proyecto "' + nombre + '" guardado.');
-    }
-    function cargarProyecto(nombre) {
-      if (!nombre) return;
-      const p = getProyectos()[nombre];
-      if (!p) return;
-      document.getElementById('proj-name').value = p.nombre;
-      Object.keys(p.params).forEach(function(k){ const el = document.getElementById('pv-' + k); if (el) el.value = p.params[k]; });
-      Object.keys(p.economico).forEach(function(k){ const el = document.getElementById('ec-' + k); if (el) el.value = p.economico[k]; });
-      drawnItems.clearLayers();
-      if (p.ubicacion.tipo === 'punto') {
-        colocarPunto(p.ubicacion.lat, p.ubicacion.lon);
-        map.setView([p.ubicacion.lat, p.ubicacion.lon], 16);
-      } else {
-        const layer = L.geoJSON(p.ubicacion.geojson, { style: { color: '#7dc97d', weight: 3, opacity: 0.9, fillColor: '#7dc97d', fillOpacity: 0.18 } });
-        const polyLayer = layer.getLayers()[0];
-        drawnItems.addLayer(polyLayer);
-        analizarPoligono(p.ubicacion.geojson, polyLayer);
-        map.fitBounds(polyLayer.getBounds(), { padding: [40, 40] });
-      }
-      if (p.resultados && p.resultados.fuentes) {
-        resultadosTri = p.resultados;
-        mostrarResultados(p.resultados.fuentes, p.resultados.params);
-      }
-    }
-    function eliminarProyecto() {
-      const sel = document.getElementById('proj-load');
-      const nombre = sel.value;
-      if (!nombre) { alert('Selecciona un proyecto.'); return; }
-      if (!confirm('¿Eliminar el proyecto "' + nombre + '"?')) return;
-      const proyectos = getProyectos();
-      delete proyectos[nombre];
-      setProyectos(proyectos);
-      refrescarSelectorProyectos();
-    }
-
-    refrescarSelectorProyectos();
     refrescarLugares();
 
     // ============ BUSCADOR ============
@@ -1007,31 +667,20 @@
       if (!q) return;
       const m = q.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
       if (m) { map.setView([parseFloat(m[1]), parseFloat(m[2])], 17); return; }
-      const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ec&q=' + encodeURIComponent(q);
-      fetch(url, { headers: { 'Accept': 'application/json' } })
-        .then(function(r){ return r.json(); })
-        .then(function(results){
-          if (!results.length) return fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q)).then(function(r){ return r.json(); });
-          return results;
-        })
-        .then(function(results){
-          if (!results.length) { alert('No se encontró el lugar.'); return; }
-          map.setView([parseFloat(results[0].lat), parseFloat(results[0].lon)], 15);
-        })
-        .catch(function(err){ alert('Error: ' + err.message); });
+      fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ec&q=' + encodeURIComponent(q))
+        .then(r => r.json())
+        .then(res => res.length ? res : fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q)).then(r => r.json()))
+        .then(res => {
+          if (!res.length) { alert('No se encontró.'); return; }
+          map.setView([parseFloat(res[0].lat), parseFloat(res[0].lon)], 15);
+        });
     }
-    document.getElementById('searchInput').addEventListener('keydown', function(e){ if (e.key === 'Enter') buscarLugar(); });
+    document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') buscarLugar(); });
 
-    window.addEventListener('beforeprint', function(){
-      const sess = (typeof Auth !== 'undefined' && Auth.current()) ? Auth.current().name : 'Usuario';
-      const proyName = document.getElementById('proj-name').value || '(sin nombre)';
-      document.getElementById('print-meta').textContent = 'Proyecto: ' + proyName + ' · Generado por: ' + sess + ' · Fecha: ' + new Date().toLocaleString('es-EC');
-    });
-
-    function formatNum(n, decimals) {
-      if (decimals === undefined) decimals = 2;
+    function formatNum(n, dec) {
+      if (dec === undefined) dec = 2;
       if (typeof n !== 'number' || !isFinite(n)) return '—';
-      return n.toLocaleString('es-EC', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+      return n.toLocaleString('es-EC', { minimumFractionDigits: dec, maximumFractionDigits: dec });
     }
   </script>
 </body>
