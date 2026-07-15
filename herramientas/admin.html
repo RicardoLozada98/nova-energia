@@ -11,6 +11,10 @@
     table { width:100%; border-collapse: collapse; margin-top:12px; font-size:13px;}
     th, td { padding:10px 12px; text-align:left; border-bottom:1px solid var(--border);}
     th { color: var(--text-muted); font-weight:600; text-transform:uppercase; font-size:11px; letter-spacing:1px;}
+    .stat-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:20px; }
+    .stat-box { background: var(--bg-secondary); border:1px solid var(--border); border-radius: var(--radius-md); padding:16px; }
+    .stat-box .stat-num { font-size:24px; font-weight:700; color: var(--green-bright); font-family: var(--font-mono); }
+    .stat-box .stat-lab { font-size:11px; text-transform:uppercase; letter-spacing:1px; color: var(--text-muted); margin-top:4px; }
   </style>
 </head>
 <body>
@@ -19,31 +23,120 @@
     <main class="main">
       <header class="page-header">
         <h1>Administración</h1>
-        <p class="subtitle">Gestión de usuarios del portal — solo administrador.</p>
+        <p class="subtitle">Gestión de usuarios y datos del portal — solo administrador master.</p>
       </header>
 
       <div id="not-allowed" class="hidden">
-        <div class="alert alert-error">No tienes permisos para acceder a esta sección.</div>
+        <div class="alert alert-error">
+          <strong>Acceso restringido.</strong> Solo el usuario master puede ver esta sección.
+        </div>
       </div>
 
       <div id="admin-panel" class="hidden">
+        <!-- Estadísticas -->
+        <div class="stat-grid">
+          <div class="stat-box">
+            <div class="stat-num" id="stat-users">—</div>
+            <div class="stat-lab">Usuarios registrados</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num" id="stat-projects">—</div>
+            <div class="stat-lab">Proyectos guardados</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num" id="stat-places">—</div>
+            <div class="stat-lab">Lugares guardados</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num" id="stat-storage">—</div>
+            <div class="stat-lab">Datos en navegador</div>
+          </div>
+        </div>
+
+        <!-- Crear usuario manual -->
         <div class="panel">
+          <h3>Crear usuario nuevo</h3>
+          <p class="text-small text-muted mb-3">Crea cuentas manualmente sin que el usuario tenga que registrarse.</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Nombre completo</label>
+              <input type="text" id="new-name" class="form-input" placeholder="Pedro Pérez" />
+            </div>
+            <div class="form-group">
+              <label>Correo electrónico</label>
+              <input type="email" id="new-email" class="form-input" placeholder="pedro@ejemplo.com" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Contraseña inicial (mín. 6 caracteres)</label>
+              <input type="text" id="new-pass" class="form-input" placeholder="contraseña123" />
+            </div>
+            <div class="form-group">
+              <label>Rol</label>
+              <select id="new-role" class="form-select">
+                <option value="user" selected>Usuario regular</option>
+                <option value="master">Master (administrador)</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="crearUsuario()" style="width:auto;">Crear usuario</button>
+          <div id="create-feedback" style="margin-top:10px;"></div>
+        </div>
+
+        <!-- Lista de usuarios -->
+        <div class="panel mt-4">
           <h3>Usuarios registrados</h3>
           <table id="users-table">
             <thead>
-              <tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Registro</th><th></th></tr>
+              <tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Registro</th><th>Acciones</th></tr>
             </thead>
             <tbody></tbody>
           </table>
         </div>
 
+        <!-- Cambiar contraseña master -->
         <div class="panel mt-4">
-          <h3>Notas sobre el almacenamiento (Fase 1)</h3>
+          <h3>Cambiar mi contraseña master</h3>
+          <p class="text-small text-muted mb-3">
+            <strong>Importante:</strong> esta contraseña está hardcodeada en <code>auth.js</code> como respaldo. Aquí la cambias localmente, pero si quieres cambiarla en el código fuente edita la constante <code>MASTER_USER.password</code> directamente.
+          </p>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Nueva contraseña</label>
+              <input type="password" id="master-newpass" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label>Confirmar</label>
+              <input type="password" id="master-newpass2" class="form-input" />
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="cambiarPassMaster()" style="width:auto;">Actualizar contraseña</button>
+          <div id="master-feedback" style="margin-top:10px;"></div>
+        </div>
+
+        <!-- Limpieza de datos -->
+        <div class="panel mt-4">
+          <h3>Mantenimiento</h3>
+          <p class="text-small text-muted mb-3">Acciones de limpieza para este navegador.</p>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-secondary" onclick="exportarDatos()">📥 Exportar todo (JSON)</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">📤 Importar respaldo</button>
+            <input type="file" id="import-file" accept=".json" style="display:none" onchange="importarDatos(event)" />
+            <button class="btn btn-danger" onclick="limpiarTodoPerocia()">🗑️ Limpiar todos los datos</button>
+          </div>
+        </div>
+
+        <!-- Notas -->
+        <div class="panel mt-4">
+          <h3>Sobre el almacenamiento</h3>
           <p class="text-small text-muted">
-            Los usuarios se almacenan en <code>localStorage</code> del navegador donde se registraron. Esto significa que cada
-            equipo tiene su propia lista. Para una sincronización entre dispositivos hay que migrar a un backend
-            (recomendado: <strong>Firebase Authentication</strong> en plan gratuito o <strong>Supabase</strong>).
-            Esto se programará en la Fase 2.
+            Todos los datos viven en el <code>localStorage</code> del navegador donde estás ahora. Esto significa: <br>
+            • Cada navegador / equipo tiene su propia base de datos. <br>
+            • Los datos persisten incluso si cierras el navegador. <br>
+            • Se borran si el usuario limpia su caché del navegador. <br>
+            • <strong>No hay sincronización automática entre dispositivos.</strong> <br><br>
+            Para sincronización en tiempo real entre toda tu organización (todos viendo los mismos proyectos y usuarios desde cualquier PC), hay que migrar a un backend gratuito como <strong>Firebase Authentication + Firestore</strong> o <strong>Supabase</strong>. Eso se puede hacer en una fase posterior sin tirar el portal actual — solo se conecta el sistema de auth al servicio externo.
           </p>
         </div>
       </div>
@@ -57,30 +150,158 @@
       document.getElementById('not-allowed').classList.remove('hidden');
     } else {
       document.getElementById('admin-panel').classList.remove('hidden');
+      refrescarTodo();
+    }
+
+    function refrescarTodo() {
       renderUsers();
+      renderStats();
     }
 
     function renderUsers() {
       const users = Auth.listUsers();
       const tbody = document.querySelector('#users-table tbody');
-      tbody.innerHTML = users.map(u => {
+      tbody.innerHTML = users.map(function(u) {
         const fecha = new Date(u.createdAt).toLocaleDateString('es-EC');
         const isMaster = u.role === 'master';
-        return `<tr>
-          <td>${u.name}</td>
-          <td>${u.email}</td>
-          <td><span class="status-pill ${isMaster ? 'status-ok' : ''}" style="${isMaster ? '' : 'background: var(--bg-secondary); color: var(--text-muted); border:1px solid var(--border);'}">${isMaster ? 'Master' : 'Usuario'}</span></td>
-          <td>${fecha}</td>
-          <td>${isMaster ? '' : `<button class="btn btn-danger" style="padding:6px 12px; font-size:12px;" onclick="eliminar('${u.email}')">Eliminar</button>`}</td>
-        </tr>`;
+        const acciones = isMaster ? '<span class="text-muted text-small">(no editable)</span>' :
+          '<button class="btn btn-secondary" style="padding:4px 10px; font-size:11px; margin-right:4px;" onclick="resetPass(\'' + u.email + '\')">🔑 Reset</button>' +
+          '<button class="btn btn-danger" style="padding:4px 10px; font-size:11px;" onclick="eliminar(\'' + u.email + '\')">🗑 Eliminar</button>';
+        return '<tr>' +
+          '<td>' + u.name + '</td>' +
+          '<td>' + u.email + '</td>' +
+          '<td><span class="status-pill ' + (isMaster ? 'status-ok' : '') + '" style="' + (isMaster ? '' : 'background: var(--bg-secondary); color: var(--text-muted); border:1px solid var(--border);') + '">' + (isMaster ? 'Master' : 'Usuario') + '</span></td>' +
+          '<td>' + fecha + '</td>' +
+          '<td>' + acciones + '</td>' +
+        '</tr>';
       }).join('');
     }
 
+    function renderStats() {
+      const users = Auth.listUsers();
+      document.getElementById('stat-users').textContent = users.length;
+      const proj = JSON.parse(localStorage.getItem('nova_fp_proyectos_v1') || '{}');
+      document.getElementById('stat-projects').textContent = Object.keys(proj).length;
+      const lugares = JSON.parse(localStorage.getItem('nova_fp_lugares_v1') || '{}');
+      let totalLugares = 0;
+      Object.keys(lugares).forEach(function(k){ totalLugares += (lugares[k] || []).length; });
+      document.getElementById('stat-places').textContent = totalLugares;
+      let bytes = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('nova_')) bytes += (localStorage.getItem(k) || '').length;
+      }
+      document.getElementById('stat-storage').textContent = (bytes / 1024).toFixed(1) + ' KB';
+    }
+
+    function crearUsuario() {
+      const nombre = document.getElementById('new-name').value.trim();
+      const email = document.getElementById('new-email').value.trim();
+      const pass = document.getElementById('new-pass').value;
+      const role = document.getElementById('new-role').value;
+      const fb = document.getElementById('create-feedback');
+      if (!nombre || !email || !pass) { fb.innerHTML = '<div class="alert alert-error">Todos los campos son obligatorios.</div>'; return; }
+      if (pass.length < 6) { fb.innerHTML = '<div class="alert alert-error">La contraseña debe tener al menos 6 caracteres.</div>'; return; }
+      const r = Auth.register({ name: nombre, email: email, password: pass });
+      if (!r.ok) { fb.innerHTML = '<div class="alert alert-error">' + r.error + '</div>'; return; }
+      // Si role es master, actualizar manualmente
+      if (role === 'master') {
+        const users = Auth.listUsers();
+        const idx = users.findIndex(function(u){ return u.email.toLowerCase() === email.toLowerCase(); });
+        if (idx >= 0) {
+          users[idx].role = 'master';
+          localStorage.setItem('nova_users_v1', JSON.stringify(users));
+        }
+      }
+      // El register hace auto-login con el nuevo usuario; restauramos sesión master
+      const masterUsers = Auth.listUsers();
+      const masterUser = masterUsers.find(function(u){ return u.role === 'master'; });
+      if (masterUser) {
+        const session = { email: masterUser.email, name: masterUser.name, role: 'master', loggedAt: new Date().toISOString() };
+        localStorage.setItem('nova_session_v1', JSON.stringify(session));
+      }
+      fb.innerHTML = '<div class="alert alert-success">✓ Usuario "' + nombre + '" creado correctamente.</div>';
+      document.getElementById('new-name').value = '';
+      document.getElementById('new-email').value = '';
+      document.getElementById('new-pass').value = '';
+      refrescarTodo();
+    }
+
+    function resetPass(email) {
+      const nueva = prompt('Nueva contraseña para ' + email + ' (mín. 6 caracteres):');
+      if (!nueva) return;
+      if (nueva.length < 6) { alert('Mínimo 6 caracteres.'); return; }
+      const users = Auth.listUsers();
+      const idx = users.findIndex(function(u){ return u.email.toLowerCase() === email.toLowerCase(); });
+      if (idx < 0) { alert('Usuario no encontrado.'); return; }
+      users[idx].password = nueva;
+      localStorage.setItem('nova_users_v1', JSON.stringify(users));
+      alert('Contraseña actualizada para ' + email + '. Comunícale la nueva contraseña.');
+    }
+
     function eliminar(email) {
-      if (!confirm(`¿Eliminar al usuario ${email}?`)) return;
+      if (!confirm('¿Eliminar al usuario ' + email + '? Sus proyectos y lugares se conservarán en el navegador.')) return;
       const r = Auth.deleteUser(email);
-      if (r.ok) renderUsers();
+      if (r.ok) refrescarTodo();
       else alert(r.error);
+    }
+
+    function cambiarPassMaster() {
+      const p1 = document.getElementById('master-newpass').value;
+      const p2 = document.getElementById('master-newpass2').value;
+      const fb = document.getElementById('master-feedback');
+      if (!p1 || p1.length < 6) { fb.innerHTML = '<div class="alert alert-error">Mínimo 6 caracteres.</div>'; return; }
+      if (p1 !== p2) { fb.innerHTML = '<div class="alert alert-error">Las contraseñas no coinciden.</div>'; return; }
+      const users = Auth.listUsers();
+      const idx = users.findIndex(function(u){ return u.role === 'master'; });
+      if (idx < 0) { fb.innerHTML = '<div class="alert alert-error">No se encontró usuario master.</div>'; return; }
+      users[idx].password = p1;
+      localStorage.setItem('nova_users_v1', JSON.stringify(users));
+      fb.innerHTML = '<div class="alert alert-success">✓ Contraseña master actualizada en este navegador. Para hacerlo permanente, edita <code>MASTER_USER.password</code> en <code>assets/js/auth.js</code> y haz commit a GitHub.</div>';
+      document.getElementById('master-newpass').value = '';
+      document.getElementById('master-newpass2').value = '';
+    }
+
+    function exportarDatos() {
+      const dump = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('nova_')) dump[k] = localStorage.getItem(k);
+      }
+      const blob = new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'nova-respaldo-' + new Date().toISOString().slice(0,10) + '.json';
+      a.click();
+    }
+
+    function importarDatos(ev) {
+      const file = ev.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (!confirm('Esto reemplazará todos los datos actuales (' + Object.keys(data).length + ' claves). ¿Continuar?')) return;
+          Object.keys(data).forEach(function(k) { localStorage.setItem(k, data[k]); });
+          alert('Respaldo restaurado. Recarga la página.');
+          location.reload();
+        } catch (err) { alert('Archivo inválido: ' + err.message); }
+      };
+      reader.readAsText(file);
+    }
+
+    function limpiarTodoPerocia() {
+      if (!confirm('⚠️ ESTO BORRARÁ TODO: usuarios, proyectos, lugares y configuración de este navegador. Solo el usuario master quedará. ¿Continuar?')) return;
+      if (!confirm('Última confirmación. ¿Estás SEGURO?')) return;
+      const keys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('nova_')) keys.push(k);
+      }
+      keys.forEach(function(k){ localStorage.removeItem(k); });
+      alert('Datos eliminados. Recarga la página.');
+      location.reload();
     }
   </script>
 </body>
