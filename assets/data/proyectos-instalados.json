@@ -1,0 +1,36 @@
+{
+  "version": "1.0",
+  "actualizado": "2026-07-15",
+  "proyectos": [
+    {
+      "id": "rival-llacao",
+      "nombre": "RIVAL LLACAO",
+      "lat": -2.858484,
+      "lon": -78.935914,
+      "potencia_kwp": 1402.0,
+      "factor_planta": 15.93,
+      "tipo_instalacion": "Fijo",
+      "fecha_actualizacion": "2026-07-15"
+    },
+    {
+      "id": "rival-ricaurte-nave-1",
+      "nombre": "RIVAL RICAURTE NAVE 1",
+      "lat": -2.858603,
+      "lon": -78.967689,
+      "potencia_kwp": 1228.98,
+      "factor_planta": 15.5,
+      "tipo_instalacion": "Fijo",
+      "fecha_actualizacion": "2026-07-15"
+    },
+    {
+      "id": "rival-ricaurte-nave-2",
+      "nombre": "RIVAL RICAURTE NAVE 2",
+      "lat": -2.856541,
+      "lon": -78.967966,
+      "potencia_kwp": 561.0,
+      "factor_planta": 14.7,
+      "tipo_instalacion": "Fijo",
+      "fecha_actualizacion": "2026-07-15"
+    }
+  ]
+}
