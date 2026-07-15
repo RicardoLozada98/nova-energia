@@ -92,6 +92,27 @@
     .punto-marker { width: 14px; height: 14px; border-radius: 50%; background: #ffb347; border: 3px solid #0d1410; box-shadow: 0 0 0 2px #ffb347, 0 0 8px rgba(255,179,71,0.6); }
     .lugar-marker { width: 8px; height: 8px; border-radius: 50%; background: rgba(125,201,125,0.6); border: 2px solid #0d1410; }
 
+    /* Pin de proyecto instalado */
+    .proyecto-marker {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: linear-gradient(135deg, #f5a623 0%, #e67e22 100%);
+      border: 3px solid #0d1410;
+      box-shadow: 0 0 0 2px #f5a623, 0 2px 8px rgba(0,0,0,0.4);
+      color: #0d1410;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 900;
+      cursor: pointer;
+    }
+    .proyecto-marker:hover { transform: scale(1.15); }
+
+    /* Control de capas Leaflet - estilo oscuro */
+    .leaflet-control-layers { background: rgba(20,27,23,0.92) !important; border: 1px solid var(--border) !important; backdrop-filter: blur(8px); color: var(--text-primary) !important; border-radius: 8px !important; }
+    .leaflet-control-layers-toggle { background-image: none !important; }
+    .leaflet-control-layers-toggle:before { content: '🗺'; font-size: 18px; display: flex; align-items: center; justify-content: center; height: 100%; }
+    .leaflet-control-layers-expanded { padding: 10px 14px !important; font-size: 12px; }
+    .leaflet-control-layers label { color: var(--text-primary); }
+    .leaflet-control-layers-separator { border-top: 1px solid var(--border) !important; margin: 8px 0 !important; }
+
     .loading-spin { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(13,20,16,0.2); border-top-color: var(--bg-primary); border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -140,6 +161,7 @@
             <button id="btn-poligono" onclick="iniciarModoPoligono()">🔷 Polígono</button>
             <button id="btn-punto" onclick="iniciarModoPunto()">📍 Punto</button>
             <button id="btn-clear" onclick="limpiarMapa()">🗑 Limpiar</button>
+            <button id="btn-toggle-pines" onclick="togglePines()" class="active">☀️ Proyectos instalados</button>
           </div>
           <div id="map"></div>
         </div>
@@ -246,12 +268,36 @@
     }
 
 
-    // ============ MAPA ============
-    const map = L.map('map', { center: [-1.5, -78.5], zoom: 7 });
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      { attribution: 'Esri', maxZoom: 19 }).addTo(map);
+    // ============ MAPA CON MÚLTIPLES CAPAS ============
+    // Capas base (elegir 1)
+    const baseSatelital = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      { attribution: 'Esri Imagery', maxZoom: 19 });
+    const baseCallejero = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+      { attribution: 'Esri Streets', maxZoom: 19 });
+    const baseTopo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+      { attribution: 'Esri Topo', maxZoom: 19 });
+
+    // Overlays (activar múltiples)
+    const overlayLimites = L.tileLayer('https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+      { attribution: 'Esri Boundaries', maxZoom: 19, opacity: 0.85 });
+    const overlayRedes = L.tileLayer('https://openinframap.org/tiles/power/{z}/{x}/{y}.png',
+      { attribution: 'OpenInfraMap · OpenStreetMap contributors', maxZoom: 18, opacity: 0.9 });
+
+    const map = L.map('map', {
+      center: [-1.5, -78.5], zoom: 7,
+      layers: [baseSatelital]  // Base inicial
+    });
+
+    // Control de capas de Leaflet
+    L.control.layers(
+      { 'Satelital': baseSatelital, 'Callejero': baseCallejero, 'Topográfico': baseTopo },
+      { 'Límites y ciudades': overlayLimites, 'Redes eléctricas': overlayRedes },
+      { collapsed: true, position: 'topright' }
+    ).addTo(map);
+
     const drawnItems = new L.FeatureGroup().addTo(map);
     const lugaresLayer = new L.FeatureGroup().addTo(map);
+    const proyectosLayer = new L.FeatureGroup().addTo(map);  // Nueva capa para pines
 
     // ============ MONTAJE ============
     function seleccionarMontaje(el) {
@@ -623,6 +669,50 @@
         });
     }
     document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') buscarLugar(); });
+
+
+    // ============ PROYECTOS INSTALADOS (pines compartidos) ============
+    let pinesVisible = true;
+    function togglePines() {
+      pinesVisible = !pinesVisible;
+      const btn = document.getElementById('btn-toggle-pines');
+      if (pinesVisible) { map.addLayer(proyectosLayer); btn.classList.add('active'); }
+      else { map.removeLayer(proyectosLayer); btn.classList.remove('active'); }
+    }
+
+    function cargarProyectosInstalados() {
+      // El JSON está en assets/data/proyectos-instalados.json — se lee al iniciar
+      fetch('../assets/data/proyectos-instalados.json?v=' + Date.now())  // cache-buster
+        .then(r => r.json())
+        .then(data => {
+          if (!data.proyectos || !data.proyectos.length) return;
+          data.proyectos.forEach(p => {
+            const icon = L.divIcon({
+              className: 'proyecto-marker-wrap',
+              html: '<div class="proyecto-marker" title="' + p.nombre + '">☀</div>',
+              iconSize: [26, 26], iconAnchor: [13, 13]
+            });
+            const popup =
+              '<div style="min-width:220px; font-family:Inter,sans-serif;">' +
+                '<div style="font-weight:700; font-size:14px; color:#2d6b2d; margin-bottom:6px;">☀️ ' + p.nombre + '</div>' +
+                '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px 12px; font-size:12px; margin-top:8px;">' +
+                  '<div style="color:#666;">Potencia:</div><div style="font-family:monospace; font-weight:600;">' + p.potencia_kwp + ' kWp</div>' +
+                  '<div style="color:#666;">Factor de planta:</div><div style="font-family:monospace; font-weight:600; color:#2d6b2d;">' + p.factor_planta.toFixed(2) + ' %</div>' +
+                  '<div style="color:#666;">Instalación:</div><div style="font-weight:600;">' + p.tipo_instalacion + '</div>' +
+                  '<div style="color:#666;">Actualizado:</div><div>' + p.fecha_actualizacion + '</div>' +
+                '</div>' +
+                '<div style="margin-top:10px; padding-top:8px; border-top:1px solid #ddd; font-size:10px; color:#888;">Lat/Lon: ' + p.lat.toFixed(4) + ', ' + p.lon.toFixed(4) + '</div>' +
+              '</div>';
+            L.marker([p.lat, p.lon], { icon: icon })
+              .bindPopup(popup, { maxWidth: 300 })
+              .bindTooltip(p.nombre + ' · FP ' + p.factor_planta.toFixed(1) + '%', { direction: 'top', offset: [0, -12] })
+              .addTo(proyectosLayer);
+          });
+          console.log('[Proyectos] Cargados ' + data.proyectos.length + ' proyectos instalados');
+        })
+        .catch(err => console.warn('[Proyectos] No se pudo cargar la lista:', err));
+    }
+    cargarProyectosInstalados();
 
     function formatNum(n, dec) {
       if (dec === undefined) dec = 2;
