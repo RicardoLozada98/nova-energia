@@ -2,17 +2,25 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="refresh" content="0; url=herramientas/factor-planta.html" />
-  <title>NOVA ENERGIA</title>
+    <title>NOVA ENERGIA</title>
   <link rel="stylesheet" href="assets/css/styles.css" />
-  <script src="assets/js/auth.js"></script>
+  <script type="module" src="assets/js/auth.js"></script>
   <script>
     // Redirección inmediata: si hay sesión va a factor-planta, sino a login
-    if (typeof Auth !== 'undefined' && Auth.current()) {
-      window.location.href = 'herramientas/factor-planta.html';
-    } else {
-      window.location.href = 'login.html';
-    }
+    // Esperar a que Firebase cargue y luego decidir a dónde ir
+    (async function() {
+      let intentos = 0;
+      while (typeof window.Auth === 'undefined' && intentos < 40) {
+        await new Promise(r => setTimeout(r, 100));
+        intentos++;
+      }
+      await new Promise(r => setTimeout(r, 400)); // dar tiempo a resolver estado auth
+      if (window.Auth && window.Auth.current()) {
+        window.location.href = 'herramientas/factor-planta.html';
+      } else {
+        window.location.href = 'login.html';
+      }
+    })();
   </script>
 </head>
 <body>
