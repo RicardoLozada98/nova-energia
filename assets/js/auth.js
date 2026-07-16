@@ -11,10 +11,10 @@ import {
   sendPasswordResetEmail, updatePassword
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
-  getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc,
-  collection, getDocs, query, where, serverTimestamp
+  getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, addDoc,
+  collection, getDocs, query, where, orderBy, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-import { firebaseConfig, MASTER_EMAIL } from "./firebase-config.js";
+import { firebaseConfig, MASTER_EMAIL, ALLOWED_DOMAIN } from "./firebase-config.js";
 
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
@@ -75,6 +75,17 @@ async function getUserProfile(uid) {
   const snap = await getDoc(doc(db, 'users', uid));
   return snap.exists() ? snap.data() : null;
 }
+// Verifica si el email cumple con el dominio permitido
+function isDomainAllowed(email) {
+  if (!ALLOWED_DOMAIN) return true; // sin restricción
+  if (!email) return false;
+  const email_lower = email.toLowerCase().trim();
+  const master_lower = MASTER_EMAIL.toLowerCase();
+  // El master siempre puede pasar aunque su dominio sea diferente
+  if (email_lower === master_lower) return true;
+  return email_lower.endsWith(ALLOWED_DOMAIN.toLowerCase());
+}
+
 
 // ============ API pública ============
 export const Auth = {
@@ -82,6 +93,9 @@ export const Auth = {
   async register({ name, email, password }) {
     if (!name || !email || !password) return { ok: false, error: 'Todos los campos son obligatorios.' };
     if (password.length < 6) return { ok: false, error: 'La contraseña debe tener al menos 6 caracteres.' };
+    if (!isDomainAllowed(email)) {
+      return { ok: false, error: 'Solo se permiten correos ' + ALLOWED_DOMAIN + '. Contacta al administrador si necesitas acceso.' };
+    }
     try {
       const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
       await createUserProfile(cred.user, { name: name.trim() });
@@ -104,7 +118,12 @@ export const Auth = {
   // Login con Google (popup)
   async loginGoogle() {
     try {
-      await signInWithPopup(auth, googleProvider);
+      const cred = await signInWithPopup(auth, googleProvider);
+      // Verificar dominio POST-auth
+      if (!isDomainAllowed(cred.user.email)) {
+        await signOut(auth);
+        return { ok: false, error: 'Solo se permiten correos ' + ALLOWED_DOMAIN + '. Tu cuenta Google no cumple. Contacta al administrador.' };
+      }
       return { ok: true };
     } catch (err) {
       return { ok: false, error: traducirErrorFirebase(err.code) };
@@ -175,7 +194,73 @@ export const Auth = {
     return { ok: true };
   },
 
-  db, auth
+  // ============ LUGARES (Firestore) ============
+  async saveLugar(datos) {
+    if (!currentUser) throw new Error('No hay sesión activa');
+    const doc = {
+      userId: currentUser.uid,
+      nombre: datos.nombre,
+      tipo: datos.tipo,
+      lat: datos.lat, lon: datos.lon,
+      areaM2: datos.areaM2 || null,
+      geojson: datos.geojson || null,
+      createdAt: serverTimestamp()
+    };
+    const ref = await addDoc(collection(db, 'lugares'), doc);
+    return { id: ref.id, ...doc };
+  },
+
+  async getMisLugares() {
+    if (!currentUser) return [];
+    const q = query(collection(db, 'lugares'), where('userId', '==', currentUser.uid));
+    const snap = await getDocs(q);
+    const lugares = [];
+    snap.forEach(d => lugares.push({ id: d.id, ...d.data() }));
+    return lugares;
+  },
+
+  async deleteLugar(id) {
+    await deleteDoc(doc(db, 'lugares', id));
+    return { ok: true };
+  },
+
+  // ============ MIGRACIÓN AUTOMÁTICA desde localStorage ============
+  async migrateFromLocalStorage() {
+    if (!currentUser) return { migrated: 0 };
+    // Ya migrado? (flag por usuario)
+    const flagKey = 'nova_migrated_' + currentUser.uid;
+    if (localStorage.getItem(flagKey)) return { migrated: 0, skipped: true };
+
+    let totalMigrados = 0;
+    // Migrar LUGARES
+    const rawL = localStorage.getItem('nova_fp_lugares_v1');
+    if (rawL) {
+      try {
+        const all = JSON.parse(rawL);
+        const email = currentUser.email.toLowerCase();
+        const mios = all[email] || [];
+        for (const l of mios) {
+          await addDoc(collection(db, 'lugares'), {
+            userId: currentUser.uid,
+            nombre: l.nombre, tipo: l.tipo,
+            lat: l.lat, lon: l.lon,
+            areaM2: l.areaM2 || null,
+            geojson: l.geojson || null,
+            createdAt: serverTimestamp(),
+            migradoDeLocalStorage: true
+          });
+          totalMigrados++;
+        }
+      } catch (e) { console.warn('Error migrando lugares:', e); }
+    }
+    // Marcar como migrado
+    localStorage.setItem(flagKey, new Date().toISOString());
+    if (totalMigrados > 0) console.log('[Migración] ' + totalMigrados + ' lugares migrados desde localStorage a Firestore');
+    return { migrated: totalMigrados };
+  },
+
+  db, auth,
+  ALLOWED_DOMAIN
 };
 
 function traducirErrorFirebase(code) {
