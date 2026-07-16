@@ -247,9 +247,16 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
   <script src="https://unpkg.com/@turf/turf@7.1.0/turf.min.js"></script>
-  <script src="../assets/js/auth.js"></script>
+  <script type="module" src="../assets/js/auth.js"></script>
   <script>
-    mountSidebar('factor-planta');
+    // Esperar a que Firebase Auth se cargue (viene como módulo)
+    (function esperarAuth() {
+      if (typeof window.Auth !== 'undefined' && typeof window.mountSidebar !== 'undefined') {
+        window.mountSidebar('factor-planta');
+      } else {
+        setTimeout(esperarAuth, 50);
+      }
+    })();
 
     // ============ ESTADO ============
     let ubicacionActual = null;
