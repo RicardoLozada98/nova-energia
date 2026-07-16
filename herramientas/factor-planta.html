@@ -421,8 +421,8 @@
     }
 
 
-    // --- PVGIS ---
-    function llamarPVGIS(p) {
+    // --- PVGIS con fallback ERA5 → SARAH2 si falla ---
+    function pvgisIntentar(p, database) {
       const opt = calcOptimalAngles(p);
       const trackMap = { '0': 0, '3': 3 };
       const tracking = trackMap[p.tracking] || 0;
@@ -430,14 +430,14 @@
         lat: p.lat.toFixed(6), lon: p.lon.toFixed(6),
         peakpower: p.power, loss: p.loss, pvtechchoice: 'crystSi',
         mountingplace: 'free', trackingtype: tracking, outputformat: 'json',
-        browser: 0, raddatabase: 'PVGIS-ERA5'
+        browser: 0, raddatabase: database
       });
       if (tracking === 0) {
         if (p.optimal === '1') q.append('optimalangles', 1);
         else { q.append('angle', p.angle); q.append('aspect', p.aspect); }
       } else if (tracking === 3) q.append('angle', opt.tilt);
       return fetch('https://pvgis-proxy.ricardo-lozada-or.workers.dev/?' + q).then(r => {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
+        if (!r.ok) throw new Error('HTTP ' + r.status + ' con ' + database);
         return r.json();
       }).then(d => {
         const keys = { '0': 'fixed', '3': 'horizontal_axis' };
@@ -445,10 +445,24 @@
         const totals = d.outputs.totals[key] || d.outputs.totals.fixed;
         const monthly = (d.outputs.monthly[key] || d.outputs.monthly.fixed).map(m => m.E_m);
         const E_y = totals.E_y;
-        return { fuente: 'PVGIS-ERA5', fuenteId: 'pvgis', ok: true, E_y,
-          fp: E_y / (p.power * 8760), monthly };
-      }).catch(err => ({ fuente: 'PVGIS-ERA5', fuenteId: 'pvgis', ok: false,
-        error: err.message === 'Failed to fetch' ? 'Worker Cloudflare no responde (revisar deployment)' : err.message }));
+        return { database, E_y, fp: E_y / (p.power * 8760), monthly };
+      });
+    }
+
+    function llamarPVGIS(p) {
+      // Primer intento: PVGIS-ERA5 (global, mejor cobertura)
+      return pvgisIntentar(p, 'PVGIS-ERA5')
+        .then(r => ({ fuente: 'PVGIS-ERA5', fuenteId: 'pvgis', ok: true, ...r }))
+        .catch(errEra5 => {
+          console.warn('[PVGIS] ERA5 falló, intentando SARAH2:', errEra5.message);
+          // Fallback: PVGIS-SARAH2 (cubre bien Europa/África/Sudamérica)
+          return pvgisIntentar(p, 'PVGIS-SARAH2')
+            .then(r => ({ fuente: 'PVGIS-SARAH2 (fallback)', fuenteId: 'pvgis', ok: true, ...r }))
+            .catch(errSarah => ({
+              fuente: 'PVGIS', fuenteId: 'pvgis', ok: false,
+              error: 'ERA5 falló (' + errEra5.message + ') y SARAH2 también (' + errSarah.message + '). Ubicación probablemente fuera de cobertura o topografía extrema.'
+            }));
+        });
     }
 
     // --- NASA POWER ---
@@ -605,37 +619,48 @@
       document.getElementById('resultados-area').innerHTML = html;
     }
 
-    // ============ LUGARES ============
-    function getLugaresAll() { return JSON.parse(localStorage.getItem(LUGARES_KEY) || '{}'); }
-    function getMisLugares() { return getLugaresAll()[getCurrentEmail()] || []; }
-    function setMisLugares(arr) { const all = getLugaresAll(); all[getCurrentEmail()] = arr; localStorage.setItem(LUGARES_KEY, JSON.stringify(all)); }
+    // ============ LUGARES (Firestore) ============
+    let cacheLugares = [];  // Cache local de los lugares del usuario
 
-    function refrescarLugares() {
-      const mis = getMisLugares();
+    async function refrescarLugares() {
+      try {
+        cacheLugares = await window.Auth.getMisLugares();
+      } catch (e) {
+        console.warn('Error cargando lugares:', e);
+        cacheLugares = [];
+      }
       const sel = document.getElementById('lugar-load');
       sel.innerHTML = '<option value="">— Cargar lugar guardado —</option>' +
-        mis.map(l => '<option value="' + l.id + '">' + (l.tipo === 'punto' ? '📍' : '🔷') + ' ' + l.nombre + '</option>').join('');
+        cacheLugares.map(l => '<option value="' + l.id + '">' + (l.tipo === 'punto' ? '📍' : '🔷') + ' ' + l.nombre + '</option>').join('');
       lugaresLayer.clearLayers();
-      mis.forEach(l => {
+      cacheLugares.forEach(l => {
         const icon = L.divIcon({ className: 'lugar-marker-wrap', html: '<div class="lugar-marker"></div>', iconSize: [8, 8], iconAnchor: [4, 4] });
         L.marker([l.lat, l.lon], { icon }).bindPopup('<strong>' + l.nombre + '</strong>').addTo(lugaresLayer);
       });
     }
-    function guardarLugar() {
+
+    async function guardarLugar() {
       if (!ubicacionActual) { alert('Primero marca un punto o polígono.'); return; }
       const nombre = prompt('Nombre del lugar:');
       if (!nombre) return;
-      const mis = getMisLugares();
-      mis.push({ id: String(Date.now()), nombre: nombre.trim(), tipo: ubicacionActual.tipo,
-        lat: ubicacionActual.lat, lon: ubicacionActual.lon,
-        areaM2: ubicacionActual.areaM2 || null, geojson: ubicacionActual.geojson || null,
-        fecha: new Date().toISOString() });
-      setMisLugares(mis);
-      refrescarLugares();
+      try {
+        await window.Auth.saveLugar({
+          nombre: nombre.trim(),
+          tipo: ubicacionActual.tipo,
+          lat: ubicacionActual.lat,
+          lon: ubicacionActual.lon,
+          areaM2: ubicacionActual.areaM2 || null,
+          geojson: ubicacionActual.geojson || null
+        });
+        await refrescarLugares();
+      } catch (e) {
+        alert('Error guardando: ' + e.message);
+      }
     }
+
     function cargarLugar(id) {
       if (!id) return;
-      const l = getMisLugares().find(x => x.id === id);
+      const l = cacheLugares.find(x => x.id === id);
       if (!l) return;
       drawnItems.clearLayers();
       if (l.tipo === 'punto') {
@@ -651,15 +676,39 @@
         map.fitBounds(pl.getBounds(), { padding: [40, 40] });
       }
     }
-    function eliminarLugar() {
+
+    async function eliminarLugar() {
       const id = document.getElementById('lugar-load').value;
-      if (!id) { alert('Selecciona un lugar.'); return; }
-      const l = getMisLugares().find(x => x.id === id);
+      if (!id) { alert('Selecciona un lugar del menú.'); return; }
+      const l = cacheLugares.find(x => x.id === id);
       if (!confirm('¿Eliminar "' + l.nombre + '"?')) return;
-      setMisLugares(getMisLugares().filter(x => x.id !== id));
-      refrescarLugares();
+      try {
+        await window.Auth.deleteLugar(id);
+        await refrescarLugares();
+      } catch (e) {
+        alert('Error eliminando: ' + e.message);
+      }
     }
-    refrescarLugares();
+
+    // Exponer globalmente para onclick
+    window.guardarLugar = guardarLugar;
+    window.cargarLugar = cargarLugar;
+    window.eliminarLugar = eliminarLugar;
+
+    // Cargar lugares tras autenticación (con migración automática)
+    (async function inicializarLugares() {
+      while (typeof window.Auth === 'undefined' || !window.Auth.current()) {
+        await new Promise(r => setTimeout(r, 100));
+      }
+      // Migrar datos de localStorage (una sola vez por usuario)
+      try {
+        const r = await window.Auth.migrateFromLocalStorage();
+        if (r.migrated > 0) {
+          console.log('[Migración] ' + r.migrated + ' lugares migrados a la nube');
+        }
+      } catch (e) { console.warn('Migración:', e); }
+      await refrescarLugares();
+    })();
 
     // ============ BUSCADOR ============
     function buscarLugar() {
