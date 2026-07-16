@@ -53,8 +53,8 @@
           </div>
         </div>
 
-        <!-- Crear usuario manual -->
-        <div class="panel">
+        <!-- Crear usuario manual (deshabilitado en Firebase - los usuarios se registran solos desde login.html) -->
+        <div class="panel hidden">
           <h3>Crear usuario nuevo</h3>
           <p class="text-small text-muted mb-3">Crea cuentas manualmente sin que el usuario tenga que registrarse.</p>
           <div class="form-row">
@@ -143,30 +143,35 @@
     </main>
   </div>
 
-  <script src="../assets/js/auth.js"></script>
+  <script type="module" src="../assets/js/auth.js"></script>
   <script>
-    mountSidebar('admin');
-    if (!Auth.isMaster()) {
-      document.getElementById('not-allowed').classList.remove('hidden');
-    } else {
-      document.getElementById('admin-panel').classList.remove('hidden');
-      refrescarTodo();
-    }
+    // Esperar a que Firebase cargue
+    (async function iniciar() {
+      while (typeof window.Auth === 'undefined') { await new Promise(r => setTimeout(r, 50)); }
+      await window.mountSidebar('admin');
+      await new Promise(r => setTimeout(r, 200)); // dar tiempo a que se resuelva el perfil
+      if (!window.Auth.isMaster()) {
+        document.getElementById('not-allowed').classList.remove('hidden');
+      } else {
+        document.getElementById('admin-panel').classList.remove('hidden');
+        await refrescarTodo();
+      }
+    })();
 
-    function refrescarTodo() {
-      renderUsers();
+    async function refrescarTodo() {
+      await renderUsers();
       renderStats();
     }
 
-    function renderUsers() {
-      const users = Auth.listUsers();
+    async function renderUsers() {
+      const users = await window.Auth.listUsers();
       const tbody = document.querySelector('#users-table tbody');
       tbody.innerHTML = users.map(function(u) {
         const fecha = new Date(u.createdAt).toLocaleDateString('es-EC');
         const isMaster = u.role === 'master';
         const acciones = isMaster ? '<span class="text-muted text-small">(no editable)</span>' :
           '<button class="btn btn-secondary" style="padding:4px 10px; font-size:11px; margin-right:4px;" onclick="resetPass(\'' + u.email + '\')">🔑 Reset</button>' +
-          '<button class="btn btn-danger" style="padding:4px 10px; font-size:11px;" onclick="eliminar(\'' + u.email + '\')">🗑 Eliminar</button>';
+          '<button class="btn btn-danger" style="padding:4px 10px; font-size:11px;" onclick="eliminar(\'' + u.uid + '\', \'' + u.email + '\')">🗑 Eliminar</button>';
         return '<tr>' +
           '<td>' + u.name + '</td>' +
           '<td>' + u.email + '</td>' +
@@ -227,21 +232,16 @@
       refrescarTodo();
     }
 
-    function resetPass(email) {
-      const nueva = prompt('Nueva contraseña para ' + email + ' (mín. 6 caracteres):');
-      if (!nueva) return;
-      if (nueva.length < 6) { alert('Mínimo 6 caracteres.'); return; }
-      const users = Auth.listUsers();
-      const idx = users.findIndex(function(u){ return u.email.toLowerCase() === email.toLowerCase(); });
-      if (idx < 0) { alert('Usuario no encontrado.'); return; }
-      users[idx].password = nueva;
-      localStorage.setItem('nova_users_v1', JSON.stringify(users));
-      alert('Contraseña actualizada para ' + email + '. Comunícale la nueva contraseña.');
+    async function resetPass(email) {
+      if (!confirm('¿Enviar correo de restablecimiento de contraseña a ' + email + '?')) return;
+      const r = await window.Auth.resetPassword(email);
+      if (r.ok) alert('✓ Se envió un correo a ' + email + ' con las instrucciones para restablecer su contraseña.');
+      else alert('Error: ' + r.error);
     }
 
-    function eliminar(email) {
-      if (!confirm('¿Eliminar al usuario ' + email + '? Sus proyectos y lugares se conservarán en el navegador.')) return;
-      const r = Auth.deleteUser(email);
+    async function eliminar(uid, email) {
+      if (!confirm('¿Eliminar al usuario ' + email + '? Solo se borra el perfil de Firestore, no la cuenta de autenticación (esa se elimina desde Firebase Console → Authentication).')) return;
+      const r = await window.Auth.deleteUserProfile(uid);
       if (r.ok) refrescarTodo();
       else alert(r.error);
     }
