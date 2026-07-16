@@ -3,130 +3,233 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Acceso · NOVA ENERGIA</title>
+  <title>Ingreso · NOVA ENERGIA</title>
   <link rel="stylesheet" href="assets/css/styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    .btn-google {
+      width: 100%;
+      background: white;
+      color: #444;
+      border: 1px solid #ddd;
+      padding: 11px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .btn-google:hover { background: #f5f5f5; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    .btn-google svg { width: 18px; height: 18px; }
+    .btn-google:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      margin: 20px 0;
+      color: var(--text-muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      border-top: 1px solid var(--border);
+    }
+    .divider span { padding: 0 12px; }
+
+    .link-btn {
+      background: none;
+      border: none;
+      color: var(--green-primary);
+      cursor: pointer;
+      font-size: 12px;
+      text-decoration: underline;
+      padding: 0;
+      font-family: inherit;
+    }
+    .link-btn:hover { color: var(--green-bright); }
+
+    .loading-spin {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(13,20,16,0.2);
+      border-top-color: var(--bg-primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
-<body class="auth-page">
-  <div class="auth-card">
-    <div class="auth-logo">
-      <img src="assets/img/logo.png" alt="NOVA ENERGIA" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-      <div style="display:none">
-        <div class="text-logo">NOVA</div>
-        <div class="text-logo-sub">ENERGIA</div>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <img src="assets/img/logo.png" alt="NOVA ENERGIA" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <div style="display:none">
+          <div class="text-logo">NOVA</div>
+          <div class="text-logo-sub">ENERGIA</div>
+        </div>
+      </div>
+
+      <h2 id="form-title">Iniciar sesión</h2>
+      <p class="auth-sub" id="form-sub">Ingresa a tu cuenta del portal</p>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login" onclick="mostrarFormulario('login')">Ingresar</button>
+        <button class="auth-tab" id="tab-register" onclick="mostrarFormulario('register')">Registrarse</button>
+      </div>
+
+      <div id="feedback"></div>
+
+      <!-- Login con Google (siempre visible arriba) -->
+      <button class="btn-google" id="btn-google" onclick="loginGoogle()">
+        <svg viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        <span>Continuar con Google</span>
+      </button>
+
+      <div class="divider"><span>o con correo</span></div>
+
+      <!-- Formulario LOGIN -->
+      <div id="form-login">
+        <div class="form-group">
+          <label>Correo electrónico</label>
+          <input type="email" id="login-email" class="form-input" placeholder="tu@correo.com" autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="password" id="login-password" class="form-input" autocomplete="current-password" />
+        </div>
+        <button class="btn btn-primary" id="btn-login" onclick="hacerLogin()">Iniciar sesión</button>
+        <p style="text-align:center; margin-top:12px;">
+          <button class="link-btn" onclick="olvideContraseña()">¿Olvidaste tu contraseña?</button>
+        </p>
+      </div>
+
+      <!-- Formulario REGISTRO -->
+      <div id="form-register" class="hidden">
+        <div class="form-group">
+          <label>Nombre completo</label>
+          <input type="text" id="reg-name" class="form-input" placeholder="Nombre y Apellido" autocomplete="name" />
+        </div>
+        <div class="form-group">
+          <label>Correo electrónico</label>
+          <input type="email" id="reg-email" class="form-input" placeholder="tu@correo.com" autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label>Contraseña <span class="text-muted text-small">(mín. 6 caracteres)</span></label>
+          <input type="password" id="reg-password" class="form-input" autocomplete="new-password" />
+        </div>
+        <button class="btn btn-primary" id="btn-register" onclick="hacerRegistro()">Crear cuenta</button>
       </div>
     </div>
-
-    <h2 id="form-title">Iniciar sesión</h2>
-    <p class="auth-sub">Portal interno de herramientas de ingeniería</p>
-
-    <div class="auth-tabs">
-      <button class="auth-tab active" id="tab-login">Iniciar sesión</button>
-      <button class="auth-tab" id="tab-register">Registrarse</button>
-    </div>
-
-    <div id="alert-slot"></div>
-
-    <!-- LOGIN FORM -->
-    <form id="form-login">
-      <div class="form-group">
-        <label for="login-email">Correo electrónico</label>
-        <input type="email" id="login-email" class="form-input" required autocomplete="email" />
-      </div>
-      <div class="form-group">
-        <label for="login-password">Contraseña</label>
-        <input type="password" id="login-password" class="form-input" required autocomplete="current-password" />
-      </div>
-      <button type="submit" class="btn btn-primary">Entrar</button>
-    </form>
-
-    <!-- REGISTER FORM -->
-    <form id="form-register" class="hidden">
-      <div class="form-group">
-        <label for="reg-name">Nombre completo</label>
-        <input type="text" id="reg-name" class="form-input" required />
-      </div>
-      <div class="form-group">
-        <label for="reg-email">Correo electrónico</label>
-        <input type="email" id="reg-email" class="form-input" required autocomplete="email" />
-      </div>
-      <div class="form-group">
-        <label for="reg-password">Contraseña (mínimo 6 caracteres)</label>
-        <input type="password" id="reg-password" class="form-input" required minlength="6" autocomplete="new-password" />
-      </div>
-      <button type="submit" class="btn btn-primary">Crear cuenta</button>
-    </form>
-
-    <p class="text-muted text-small mt-4" style="text-align:center;">
-      Acceso restringido al equipo de NOVA ENERGIA.
-    </p>
   </div>
 
-  <script src="assets/js/auth.js"></script>
-  <script>
-    // Si ya hay sesión, ir al dashboard
-    if (Auth.current()) {
-      window.location.href = 'index.html';
+  <script type="module">
+    import { Auth } from './assets/js/auth.js';
+
+    // Si ya hay sesión, redirigir directo a factor-planta
+    Auth.requireAuth = async function() {};  // Deshabilitar auto-redirect en login
+    (async () => {
+      // Esperar a que Firebase resuelva estado inicial
+      await new Promise(r => setTimeout(r, 300));
+      const s = Auth.current();
+      if (s) window.location.href = 'herramientas/factor-planta.html';
+    })();
+
+    window.mostrarFormulario = (tipo) => {
+      document.getElementById('tab-login').classList.toggle('active', tipo === 'login');
+      document.getElementById('tab-register').classList.toggle('active', tipo === 'register');
+      document.getElementById('form-login').classList.toggle('hidden', tipo !== 'login');
+      document.getElementById('form-register').classList.toggle('hidden', tipo !== 'register');
+      document.getElementById('form-title').textContent = tipo === 'login' ? 'Iniciar sesión' : 'Crear cuenta';
+      document.getElementById('form-sub').textContent = tipo === 'login' ? 'Ingresa a tu cuenta del portal' : 'Regístrate para acceder al portal';
+      document.getElementById('feedback').innerHTML = '';
+    };
+
+    function mostrarFeedback(tipo, mensaje) {
+      const cls = tipo === 'error' ? 'alert-error' : (tipo === 'success' ? 'alert-success' : 'alert-info');
+      document.getElementById('feedback').innerHTML = `<div class="alert ${cls}">${mensaje}</div>`;
     }
 
-    const tabLogin = document.getElementById('tab-login');
-    const tabRegister = document.getElementById('tab-register');
-    const formLogin = document.getElementById('form-login');
-    const formRegister = document.getElementById('form-register');
-    const formTitle = document.getElementById('form-title');
-    const alertSlot = document.getElementById('alert-slot');
-
-    function showAlert(type, msg) {
-      alertSlot.innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+    function setLoading(btnId, texto) {
+      const btn = document.getElementById(btnId);
+      btn.disabled = true;
+      btn.dataset.original = btn.innerHTML;
+      btn.innerHTML = `<span class="loading-spin"></span> ${texto}`;
+    }
+    function unsetLoading(btnId) {
+      const btn = document.getElementById(btnId);
+      btn.disabled = false;
+      btn.innerHTML = btn.dataset.original;
     }
 
-    tabLogin.addEventListener('click', () => {
-      tabLogin.classList.add('active');
-      tabRegister.classList.remove('active');
-      formLogin.classList.remove('hidden');
-      formRegister.classList.add('hidden');
-      formTitle.textContent = 'Iniciar sesión';
-      alertSlot.innerHTML = '';
-    });
-
-    tabRegister.addEventListener('click', () => {
-      tabRegister.classList.add('active');
-      tabLogin.classList.remove('active');
-      formRegister.classList.remove('hidden');
-      formLogin.classList.add('hidden');
-      formTitle.textContent = 'Crear cuenta';
-      alertSlot.innerHTML = '';
-    });
-
-    formLogin.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const result = Auth.login({
-        email: document.getElementById('login-email').value,
-        password: document.getElementById('login-password').value
-      });
-      if (result.ok) {
-        window.location.href = 'index.html';
+    window.hacerLogin = async () => {
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      if (!email || !password) { mostrarFeedback('error', 'Ingresa correo y contraseña.'); return; }
+      setLoading('btn-login', 'Ingresando...');
+      const r = await Auth.login({ email, password });
+      if (r.ok) {
+        mostrarFeedback('success', '✓ Bienvenido. Redirigiendo...');
+        setTimeout(() => window.location.href = 'herramientas/factor-planta.html', 500);
       } else {
-        showAlert('error', result.error);
+        mostrarFeedback('error', r.error);
+        unsetLoading('btn-login');
       }
-    });
+    };
 
-    formRegister.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const result = Auth.register({
-        name: document.getElementById('reg-name').value,
-        email: document.getElementById('reg-email').value,
-        password: document.getElementById('reg-password').value
-      });
-      if (result.ok) {
-        showAlert('success', '¡Cuenta creada! Redirigiendo…');
-        setTimeout(() => window.location.href = 'index.html', 800);
+    window.hacerRegistro = async () => {
+      const name = document.getElementById('reg-name').value.trim();
+      const email = document.getElementById('reg-email').value.trim();
+      const password = document.getElementById('reg-password').value;
+      setLoading('btn-register', 'Creando cuenta...');
+      const r = await Auth.register({ name, email, password });
+      if (r.ok) {
+        mostrarFeedback('success', '✓ Cuenta creada. Redirigiendo...');
+        setTimeout(() => window.location.href = 'herramientas/factor-planta.html', 800);
       } else {
-        showAlert('error', result.error);
+        mostrarFeedback('error', r.error);
+        unsetLoading('btn-register');
       }
-    });
+    };
+
+    window.loginGoogle = async () => {
+      setLoading('btn-google', 'Abriendo Google...');
+      const r = await Auth.loginGoogle();
+      if (r.ok) {
+        mostrarFeedback('success', '✓ Bienvenido. Redirigiendo...');
+        setTimeout(() => window.location.href = 'herramientas/factor-planta.html', 500);
+      } else {
+        mostrarFeedback('error', r.error);
+        unsetLoading('btn-google');
+      }
+    };
+
+    window.olvideContraseña = async () => {
+      const email = document.getElementById('login-email').value.trim();
+      if (!email) { mostrarFeedback('info', 'Escribe primero tu correo arriba y luego pulsa "¿Olvidaste tu contraseña?"'); return; }
+      const r = await Auth.resetPassword(email);
+      if (r.ok) mostrarFeedback('success', `✓ Enviamos un correo a ${email} con instrucciones para restablecer tu contraseña. Revisa tu bandeja (y spam).`);
+      else mostrarFeedback('error', r.error);
+    };
+
+    // Enter para enviar
+    document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') hacerLogin(); });
+    document.getElementById('reg-password').addEventListener('keydown', e => { if (e.key === 'Enter') hacerRegistro(); });
   </script>
 </body>
 </html>
