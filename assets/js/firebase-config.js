@@ -17,3 +17,7 @@ export const firebaseConfig = {
 
 // Email del usuario master (siempre queda como admin al registrarse por primera vez)
 export const MASTER_EMAIL = 'ricardo.lozada.or@gmail.com';
+
+// Dominio permitido para registro. Solo emails que terminan en este dominio pueden registrarse.
+// Poner null (sin comillas) para permitir cualquier dominio.
+export const ALLOWED_DOMAIN = '@nova-en.com';
