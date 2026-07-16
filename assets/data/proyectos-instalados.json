@@ -1,6 +1,6 @@
 {
-  "version": "1.0",
-  "actualizado": "2026-07-15",
+  "version": "1.3",
+  "actualizado": "2026-07-16",
   "proyectos": [
     {
       "id": "rival-llacao",
@@ -28,7 +28,47 @@
       "lat": -2.856541,
       "lon": -78.967966,
       "potencia_kwp": 561.0,
-      "factor_planta": 14.7,
+      "factor_planta": 15.8,
+      "tipo_instalacion": "Fijo",
+      "fecha_actualizacion": "2026-07-15"
+    },
+    {
+      "id": "rival-guayaquil",
+      "nombre": "RIVAL GUAYAQUIL",
+      "lat": -2.082605,
+      "lon": -79.947587,
+      "potencia_kwp": 1061.28,
+      "factor_planta": 13.67,
+      "tipo_instalacion": "Fijo",
+      "fecha_actualizacion": "2026-07-15"
+    },
+    {
+      "id": "aliservis-locales",
+      "nombre": "ALISERVIS LOCALES",
+      "lat": -0.215644,
+      "lon": -78.354574,
+      "potencia_kwp": 334.0,
+      "factor_planta": 19.1,
+      "tipo_instalacion": "Fijo",
+      "fecha_actualizacion": "2026-07-15"
+    },
+    {
+      "id": "aliservis-planta",
+      "nombre": "ALISERVIS PLANTA",
+      "lat": -0.216243,
+      "lon": -78.355366,
+      "potencia_kwp": 120.0,
+      "factor_planta": 18.08,
+      "tipo_instalacion": "Fijo",
+      "fecha_actualizacion": "2026-07-15"
+    },
+    {
+      "id": "banco-del-austro-matriz-bodega",
+      "nombre": "BANCO DEL AUSTRO MATRIZ BODEGA",
+      "lat": -2.875361,
+      "lon": -78.982588,
+      "potencia_kwp": 227.7,
+      "factor_planta": 15.26,
       "tipo_instalacion": "Fijo",
       "fecha_actualizacion": "2026-07-15"
     }
